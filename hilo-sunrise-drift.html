@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hilo Sunrise Drift</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: single reading column, live orbit model up top, linked year charts below, notes last */
+:root{
+  --bg:#F2F4F6;--panel:#FFFFFF;--fg:#15212C;--muted:#5B6976;--rule:#D9DFE5;
+  --sun:#E39A23;--earth:#2F7FD1;--ecc:#7468D2;--obl:#1B9478;--time:#B9700F;--sol:#D0582C;
+  --f-display:"Newsreader",Georgia,"Times New Roman",serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0D141B;--panel:#151F29;--fg:#E4EBF1;--muted:#93A2AF;--rule:#26333F;
+  --sun:#F2B04A;--earth:#5BA3EC;--ecc:#A39AF0;--obl:#43C39F;--time:#E7A13F;--sol:#EE8460;color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0D141B;--panel:#151F29;--fg:#E4EBF1;--muted:#93A2AF;--rule:#26333F;
+  --sun:#F2B04A;--earth:#5BA3EC;--ecc:#A39AF0;--obl:#43C39F;--time:#E7A13F;--sol:#EE8460;color-scheme:dark}
+html,body{margin:0}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:16px;line-height:1.6}
+.wrap{max-width:760px;margin:0 auto;padding-block:32px 56px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:28px}
+.eyebrow{font-family:var(--f-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0}
+h1{font-family:var(--f-display);font-weight:500;font-size:clamp(30px,6vw,42px);line-height:1.1;margin:6px 0 10px;text-wrap:balance}
+h2{font-family:var(--f-display);font-weight:500;font-size:22px;margin:0 0 8px;text-wrap:balance}
+p{margin:0 0 12px;max-width:65ch}
+.lede{color:var(--muted);font-size:17px}
+.panel{background:var(--panel);border:1px solid var(--rule);border-radius:10px;padding:16px}
+.ctrl{display:flex;align-items:center;gap:12px}
+.ctrl input{flex:1;min-width:0;accent-color:var(--sun)}
+button{font:inherit;font-size:14px;color:var(--fg);background:transparent;border:1px solid var(--rule);border-radius:6px;padding:6px 14px;cursor:pointer;min-width:72px}
+button:hover{border-color:var(--muted)}
+button:focus-visible,input:focus-visible,canvas:focus-visible{outline:2px solid var(--earth);outline-offset:2px}
+.date{font-family:var(--f-mono);font-weight:500;min-width:64px;text-align:right;font-variant-numeric:tabular-nums}
+canvas{display:block;width:100%}
+#orb{height:320px;cursor:grab;touch-action:none;margin-top:8px}
+.hint{font-size:12px;color:var(--muted);text-align:center;margin:4px 0 0}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-top:1px solid var(--rule);margin-top:14px;padding-top:12px}
+.stats div{display:flex;flex-direction:column;gap:2px}
+.stats span{font-size:12px;color:var(--muted)}
+.stats strong{font-family:var(--f-mono);font-weight:500;font-size:18px;font-variant-numeric:tabular-nums}
+@media (max-width:480px){.stats{grid-template-columns:repeat(2,minmax(0,1fr));row-gap:12px}}
+#ch{height:420px}
+.legend{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--muted);margin-top:8px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:16px;height:3px;border-radius:2px;display:inline-block}
+table{border-collapse:collapse;width:100%;font-size:14px}
+.tbl{overflow-x:auto}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--rule)}
+th{font-weight:500;color:var(--muted);font-size:12px;letter-spacing:.04em;text-transform:uppercase}
+td.n{font-family:var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.foot{font-size:13px;color:var(--muted)}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:20px}
+.two h3{font-size:15px;font-weight:500;margin:0 0 4px;display:flex;align-items:center;gap:8px}
+.two p{font-size:15px;color:var(--fg)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <p class="eyebrow">Hilo, Hawaiʻi · 19.7° N, 155.1° W · HST, no daylight saving</p>
+    <h1>Why the latest sunrise comes after the shortest day</h1>
+    <p class="lede">Day length bottoms out at the December solstice, but Hilo's darkest morning arrives in mid-January. Scrub through the year to see the two orbital effects that slide the whole daylight window around the clock.</p>
+  </header>
+
+  <section class="panel" aria-label="Orbit model">
+    <div class="ctrl">
+      <button id="play" type="button" aria-label="Play through the year">Play</button>
+      <input type="range" id="day" min="1" max="365" step="1" value="287" aria-label="Day of year">
+      <span class="date" id="dlab">Oct 14</span>
+    </div>
+    <canvas id="orb" aria-label="Earth on its orbit with tilted axis; drag to rotate"></canvas>
+    <p class="hint">Drag to rotate. Orbit shape and speed changes are exaggerated so they're visible.</p>
+    <div class="stats">
+      <div><span>Sunrise</span><strong id="mRise">-</strong></div>
+      <div><span>Sunset</span><strong id="mSet">-</strong></div>
+      <div><span>Solar noon</span><strong id="mNoon">-</strong></div>
+      <div><span>Day length</span><strong id="mLen">-</strong></div>
+    </div>
+  </section>
+
+  <section class="panel" aria-label="Year charts">
+    <canvas id="ch" aria-label="Equation of time, sunrise and sunset across the year"></canvas>
+    <div class="legend">
+      <span><i class="sw" style="background:var(--ecc)"></i>Elliptical orbit effect</span>
+      <span><i class="sw" style="background:var(--obl)"></i>Axial tilt effect</span>
+      <span><i class="sw" style="background:var(--fg)"></i>Combined shift of solar noon</span>
+      <span><i class="sw" style="background:var(--sol)"></i>Solstice</span>
+      <span>○ Clock-time extreme</span>
+    </div>
+  </section>
+
+  <section>
+    <h2>Two effects, added together</h2>
+    <div class="two">
+      <div>
+        <h3><i class="sw" style="background:var(--ecc)"></i>Elliptical orbit</h3>
+        <p>Earth moves fastest at perihelion in early January. Each day it has to turn a little farther to bring the Sun back overhead, so solar days run long. The lag swings about ±7.5 minutes once a year.</p>
+      </div>
+      <div>
+        <h3><i class="sw" style="background:var(--obl)"></i>Axial tilt</h3>
+        <p>The axis keeps pointing the same way in space. Near the solstices the Sun's apparent path runs parallel to the equator, so it gains more eastward ground per day than at the equinoxes. That swings about ±10 minutes, twice a year.</p>
+      </div>
+    </div>
+    <p>In late December both effects push solar noon later by about 30 seconds a day, while Hilo's day length barely changes. Sunrise keeps getting later for weeks after the solstice.</p>
+  </section>
+
+  <section>
+    <h2>Hilo's extremes</h2>
+    <div class="tbl"><table>
+      <thead><tr><th>Event</th><th>Approx. date</th><th>Time (HST)</th></tr></thead>
+      <tbody id="ext"></tbody>
+    </table></div>
+    <p class="foot" style="margin-top:10px">Times computed from standard solar-position approximations for Hilo; expect agreement with published tables to within about a minute.</p>
+  </section>
+  <p class="foot"><a href="./" style="color:inherit">All explainers</a></p>
+</div>
+<script>
+const D2R=Math.PI/180,LAT=19.72,LON=155.08,EV=0.2,TILT=23.44*D2R;
+const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+let C={};const readC=()=>{const s=getComputedStyle(document.documentElement);['bg','panel','fg','muted','rule','sun','earth','ecc','obl','time','sol'].forEach(k=>C[k]=s.getPropertyValue('--'+k).trim());C.mono=s.getPropertyValue('--f-mono').trim();};
+function sun(n){const g=2*Math.PI/365*(n-1);const dec=0.006918-0.399912*Math.cos(g)+0.070257*Math.sin(g)-0.006758*Math.cos(2*g)+0.000907*Math.sin(2*g)-0.002697*Math.cos(3*g)+0.00148*Math.sin(3*g);const B=2*Math.PI*(n-81)/365;const obl=9.87*Math.sin(2*B),ecc=-7.53*Math.cos(B)-1.5*Math.sin(B),eot=obl+ecc,noon=720+4*(LON-150)-eot;const cH=(Math.sin(-0.833*D2R)-Math.sin(LAT*D2R)*Math.sin(dec))/(Math.cos(LAT*D2R)*Math.cos(dec));const H=Math.acos(cH)/D2R;return{obl,ecc,eot,noon,rise:noon-4*H,set:noon+4*H};}
+const S=[];for(let i=1;i<=365;i++)S.push(sun(i));
+const fmt=m=>{m=Math.round(m);let h=Math.floor(m/60),mm=m%60,ap=h>=12?'PM':'AM';h=h%12||12;return h+':'+String(mm).padStart(2,'0')+' '+ap;};
+const dstr=n=>{const d=new Date(2026,0,n);return MON[d.getMonth()]+' '+d.getDate();};
+const ext=(k,cmp)=>{let b=0;S.forEach((s,i)=>{if(cmp(s[k],S[b][k]))b=i;});return b+1;};
+const EX={lr:ext('rise',(a,b)=>a>b),er:ext('rise',(a,b)=>a<b),es:ext('set',(a,b)=>a<b),ls:ext('set',(a,b)=>a>b)};
+const lenStr=d=>{const L=Math.round(S[d-1].set-S[d-1].rise);return Math.floor(L/60)+'h '+(L%60)+'m';};
+document.getElementById('ext').innerHTML=[
+ ['Shortest day (winter solstice)',355,lenStr(355)+' of daylight'],
+ ['Earliest sunset',EX.es,fmt(S[EX.es-1].set)],
+ ['Latest sunrise',EX.lr,fmt(S[EX.lr-1].rise)],
+ ['Earliest sunrise',EX.er,fmt(S[EX.er-1].rise)],
+ ['Longest day (summer solstice)',172,lenStr(172)+' of daylight'],
+ ['Latest sunset',EX.ls,fmt(S[EX.ls-1].set)]
+].sort((a,b)=>((a[1]+10)%365)-((b[1]+10)%365)).map(r=>`<tr><td>${r[0]}</td><td class="n">${dstr(r[1])}</td><td class="n">${r[2]}</td></tr>`).join('');
+let n=287,yaw=-0.5,pitch=0.5,timer=null;
+try{const d=new Date();const doy=Math.round((d-new Date(d.getFullYear(),0,0))/864e5);if(doy>=1&&doy<=365)n=doy;}catch(e){}
+function setup(c){const r=window.devicePixelRatio||1,w=c.clientWidth,h=c.clientHeight;c.width=w*r;c.height=h*r;const x=c.getContext('2d');x.setTransform(r,0,0,r,0,0);return{x,w,h};}
+const eAng=d=>{const M=2*Math.PI*(d-3)/365.25;return 104*D2R+M+2*EV*Math.sin(M)+1.25*EV*EV*Math.sin(2*M);};
+const rad=a=>(1-EV*EV)/(1+EV*Math.cos(a-104*D2R));
+function drawOrb(){const c=document.getElementById('orb');const{x,w,h}=setup(c);const sc=Math.min(w*0.34,135),cx=w/2,cy=h/2+12;
+const P=(X,Y,Z)=>{const x1=X*Math.cos(yaw)-Y*Math.sin(yaw),y1=X*Math.sin(yaw)+Y*Math.cos(yaw);return[cx+sc*x1,cy-sc*(Z*Math.cos(pitch)+y1*Math.sin(pitch)),y1*Math.cos(pitch)-Z*Math.sin(pitch)];};
+x.font='12px '+C.mono;
+x.strokeStyle=C.rule;x.lineWidth=1.5;x.beginPath();for(let i=0;i<=200;i++){const a=i/200*2*Math.PI,r=rad(a),p=P(r*Math.cos(a),r*Math.sin(a),0);i?x.lineTo(p[0],p[1]):x.moveTo(p[0],p[1]);}x.stroke();x.lineWidth=1;
+const ap=104*D2R,pe=P(rad(ap)*Math.cos(ap),rad(ap)*Math.sin(ap),0),ae=P(rad(ap+Math.PI)*Math.cos(ap+Math.PI),rad(ap+Math.PI)*Math.sin(ap+Math.PI),0);
+x.setLineDash([3,4]);x.strokeStyle=C.ecc;x.beginPath();x.moveTo(pe[0],pe[1]);x.lineTo(ae[0],ae[1]);x.stroke();x.setLineDash([]);
+const sp=P(0,0,0);
+[[3,'Perihelion · Jan 3',C.ecc],[185,'Aphelion · Jul 4',C.ecc],[172,'Jun solstice',C.obl,-1],[355,'Dec solstice',C.obl,-1]].forEach(([d,l,col,s=1])=>{const a=eAng(d),r=rad(a),p=P(r*Math.cos(a),r*Math.sin(a),0);x.fillStyle=col;x.beginPath();x.arc(p[0],p[1],3.5,0,7);x.fill();const dx=p[0]-sp[0],dy=p[1]-sp[1],L=Math.hypot(dx,dy)||1;x.fillStyle=C.muted;x.textAlign=dx*s>0?'left':'right';x.fillText(l,p[0]+s*dx/L*12,p[1]+s*dy/L*14+4);});
+const a=eAng(n),r=rad(a),E=[r*Math.cos(a),r*Math.sin(a),0],ep=P(...E);
+const dSun=()=>{x.fillStyle=C.sun;x.beginPath();x.arc(sp[0],sp[1],14,0,7);x.fill();};
+const dEarth=()=>{x.strokeStyle=C.rule;x.beginPath();x.moveTo(sp[0],sp[1]);x.lineTo(ep[0],ep[1]);x.stroke();
+const ax=[0,Math.sin(TILT),Math.cos(TILT)],L=0.22,t=P(E[0]+ax[0]*L,E[1]+ax[1]*L,E[2]+ax[2]*L),b=P(E[0]-ax[0]*L,E[1]-ax[1]*L,E[2]-ax[2]*L);
+x.fillStyle=C.earth;x.beginPath();x.arc(ep[0],ep[1],9,0,7);x.fill();
+x.strokeStyle=C.fg;x.lineWidth=2;x.beginPath();x.moveTo(b[0],b[1]);x.lineTo(t[0],t[1]);x.stroke();x.lineWidth=1;x.fillStyle=C.fg;x.textAlign='center';x.fillText('N',t[0]+(t[0]-ep[0])*0.3,t[1]+(t[1]-ep[1])*0.3);};
+if(ep[2]>0){dEarth();dSun();}else{dSun();dEarth();}
+x.fillStyle=C.muted;x.textAlign='left';x.fillText('Axis tilt 23.4°, fixed in space',4,14);}
+function drawCh(){const c=document.getElementById('ch');const{x,w,h}=setup(c);const L=62,R=8,W=w-L-R;x.font='11px '+C.mono;const X=d=>L+(d-1)/364*W;
+const panel=(y0,ph,lo,hi,series,title,ticks,tf,inv)=>{const Y=v=>inv?y0+(v-lo)/(hi-lo)*ph:y0+ph-(v-lo)/(hi-lo)*ph;x.strokeStyle=C.rule;x.fillStyle=C.muted;x.textAlign='right';ticks.forEach(t=>{x.beginPath();x.moveTo(L,Y(t));x.lineTo(L+W,Y(t));x.stroke();x.fillText(tf(t),L-6,Y(t)+4);});
+x.textAlign='left';x.fillStyle=C.fg;x.font='500 12px '+C.mono;x.fillText(title,L,y0-8);x.font='11px '+C.mono;
+series.forEach(([k,col,lw])=>{x.strokeStyle=col;x.lineWidth=lw;x.beginPath();S.forEach((s,i)=>{const p=[X(i+1),Y(s[k])];i?x.lineTo(...p):x.moveTo(...p);});x.stroke();x.lineWidth=1;x.fillStyle=col;x.beginPath();x.arc(X(n),Y(S[n-1][k]),4,0,7);x.fill();});return Y;};
+const ph=(h-104)/3;
+panel(20,ph,-17,17,[['ecc',C.ecc,1.5],['obl',C.obl,1.5],['eot',C.fg,2.5]],'Sundial ahead of clock (min)',[-15,0,15],t=>(t>0?'+':'')+t);
+const yr=panel(20+ph+32,ph,335,425,[['rise',C.time,2]],'Sunrise',[340,380,420],fmt,true);
+const ys=panel(20+2*ph+64,ph,1055,1145,[['set',C.time,2]],'Sunset',[1060,1100,1140],fmt,true);
+[[EX.lr,'rise',yr],[EX.er,'rise',yr],[EX.es,'set',ys],[EX.ls,'set',ys]].forEach(([d,k,Y])=>{x.strokeStyle=C.fg;x.beginPath();x.arc(X(d),Y(S[d-1][k]),6,0,7);x.stroke();});
+[172,355].forEach(d=>{x.strokeStyle=C.sol;x.setLineDash([2,3]);x.beginPath();x.moveTo(X(d),20);x.lineTo(X(d),h-28);x.stroke();x.setLineDash([]);});
+x.strokeStyle=C.muted;x.beginPath();x.moveTo(X(n),20);x.lineTo(X(n),h-28);x.stroke();
+x.fillStyle=C.muted;x.textAlign='center';MON.forEach((m,i)=>{const doy=Math.round((new Date(2026,i,15)-new Date(2026,0,0))/864e5);x.fillText(m,X(doy),h-10);});}
+function upd(){const s=S[n-1];document.getElementById('dlab').textContent=dstr(n);document.getElementById('mRise').textContent=fmt(s.rise);document.getElementById('mSet').textContent=fmt(s.set);document.getElementById('mNoon').textContent=fmt(s.noon);document.getElementById('mLen').textContent=lenStr(n);drawOrb();drawCh();}
+const sl=document.getElementById('day');sl.value=n;sl.addEventListener('input',e=>{n=+e.target.value;upd();});
+const pb=document.getElementById('play');pb.addEventListener('click',()=>{if(timer){clearInterval(timer);timer=null;pb.textContent='Play';}else{timer=setInterval(()=>{n=n%365+1;sl.value=n;upd();},45);pb.textContent='Pause';}});
+const oc=document.getElementById('orb');let drag=null;
+oc.addEventListener('pointerdown',e=>{drag=[e.clientX,e.clientY,yaw,pitch];oc.setPointerCapture(e.pointerId);oc.style.cursor='grabbing';});
+oc.addEventListener('pointermove',e=>{if(!drag)return;yaw=drag[2]+(e.clientX-drag[0])*0.01;pitch=Math.max(0.08,Math.min(1.4,drag[3]+(e.clientY-drag[1])*0.01));drawOrb();});
+oc.addEventListener('pointerup',()=>{drag=null;oc.style.cursor='grab';});
+const reTheme=()=>{readC();upd();};
+try{matchMedia('(prefers-color-scheme: dark)').addEventListener('change',reTheme);}catch(e){}
+new MutationObserver(reTheme).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+window.addEventListener('resize',upd);
+readC();upd();
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(upd);
+</script>
+</body>
+</html>

@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sky and Sea Over Hilo</title>
+<meta name="description" content="Interactive explainers on Hilo's sunrise drift, the analemma, Hilo Bay's tides and the tidal brake on the Earth and Moon.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column; a short header, then one row per explainer, then provenance */
+:root{
+  --bg:#F1F4F5;--panel:#FFFFFF;--fg:#132029;--muted:#566874;--rule:#D6DEE2;--accent:#1F7EA6;
+  --f-display:"Newsreader",Georgia,"Times New Roman",serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0C1418;--panel:#141F25;--fg:#E3ECF0;--muted:#91A3AE;--rule:#25343D;--accent:#4FB3DC;color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0C1418;--panel:#141F25;--fg:#E3ECF0;--muted:#91A3AE;--rule:#25343D;--accent:#4FB3DC;color-scheme:dark}
+html,body{margin:0}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:16px;line-height:1.6;-webkit-text-size-adjust:100%}
+.wrap{max-width:760px;margin:0 auto;padding-block:40px 56px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:28px}
+.eyebrow{font-family:var(--f-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0}
+h1{font-family:var(--f-display);font-weight:500;font-size:clamp(32px,6vw,44px);line-height:1.1;margin:6px 0 10px;text-wrap:balance}
+p{margin:0 0 12px;max-width:65ch}
+.lede{color:var(--muted);font-size:17px}
+ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px}
+li a{display:block;background:var(--panel);border:1px solid var(--rule);border-radius:10px;padding:16px;color:inherit;text-decoration:none}
+li a:hover{border-color:var(--muted)}
+li a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.t{font-family:var(--f-display);font-weight:500;font-size:21px;line-height:1.25;margin:0 0 4px;color:var(--fg)}
+.d{margin:0;color:var(--muted);font-size:15px}
+.foot{font-size:13px;color:var(--muted)}
+.foot a{color:inherit}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <p class="eyebrow">Forest Bremer · Hilo, Hawaiʻi</p>
+    <h1>Sky and sea over Hilo</h1>
+    <p class="lede">Interactive explainers on why Hilo's sunrise drifts, the figure 8 the Sun draws over the town, and what drives the tides in Hilo Bay. Each one runs in your browser from standard astronomical formulas and NOAA's tide constants for Hilo.</p>
+  </header>
+  <ul>
+    <li><a href="hilo-sunrise-drift.html"><p class="t">Why the latest sunrise comes after the shortest day</p><p class="d">The equation of time, from Earth's tilted axis and elliptical orbit, and Hilo's sunrise and sunset through the year.</p></a></li>
+    <li><a href="hilo-analemma.html"><p class="t">The figure 8 the Sun draws over Hilo</p><p class="d">The analemma at 12:20 PM HST, the two effects that shape it, and Lāhainā Noon.</p></a></li>
+    <li><a href="hilo-tides.html"><p class="t">Why Hilo's tides rise and fall the way they do</p><p class="d">The next 30 days of tides at NOAA station 1617760, with the Moon and Sun that set them.</p></a></li>
+    <li><a href="tidal-forces.html"><p class="t">How tides stretch the sea, slow the Earth and push the Moon away</p><p class="d">Tidal forces, tidal braking, and day length through 620 million years of fossils and sediments.</p></a></li>
+  </ul>
+  <p class="foot">Made with AI assistance. Sunrise and sunset times were checked against the US Naval Observatory, and the tide curve against NOAA's predictions; the scripts are in <a href="https://github.com/fbremer/fbremer.github.io/tree/main/checks">checks/</a>. Not for navigation. <a href="https://github.com/fbremer">github.com/fbremer</a></p>
+</div>
+</body>
+</html>

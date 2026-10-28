@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Tidal Brake</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: reading column; three stacked labs (the stretch, the brake, deep time), each a panel followed by its explanation */
+:root{
+  --bg:#F1F4F5;--panel:#FFFFFF;--fg:#132029;--muted:#566874;--rule:#D6DEE2;--space:#E8EDF0;
+  --water:#1F7EA6;--waterfill:rgba(31,126,166,.22);--earth:#7F9A6A;--moon:#6F6C95;--sun:#D98A12;--brake:#C0503A;--boost:#2E8A5C;
+  --f-display:"Newsreader",Georgia,"Times New Roman",serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0C1418;--panel:#141F25;--fg:#E3ECF0;--muted:#91A3AE;--rule:#25343D;--space:#0F191E;
+  --water:#4FB3DC;--waterfill:rgba(79,179,220,.25);--earth:#8FAE78;--moon:#B4B1D6;--sun:#F2B04A;--brake:#EE8466;--boost:#5CC98E;color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0C1418;--panel:#141F25;--fg:#E3ECF0;--muted:#91A3AE;--rule:#25343D;--space:#0F191E;
+  --water:#4FB3DC;--waterfill:rgba(79,179,220,.25);--earth:#8FAE78;--moon:#B4B1D6;--sun:#F2B04A;--brake:#EE8466;--boost:#5CC98E;color-scheme:dark}
+html,body{margin:0}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:16px;line-height:1.6;-webkit-text-size-adjust:100%}
+.wrap{max-width:840px;margin:0 auto;padding-block:32px 56px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:28px}
+.eyebrow{font-family:var(--f-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0}
+h1{font-family:var(--f-display);font-weight:500;font-size:clamp(30px,6vw,42px);line-height:1.1;margin:6px 0 10px;text-wrap:balance}
+h2{font-family:var(--f-display);font-weight:500;font-size:24px;margin:0 0 8px;text-wrap:balance}
+p{margin:0 0 12px;max-width:65ch}
+.lede{color:var(--muted);font-size:17px}
+.num{font-family:var(--f-mono);font-size:12px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;margin:0 0 2px}
+.panel{background:var(--panel);border:1px solid var(--rule);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.row{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;font-size:14px}
+.row label{display:flex;align-items:center;gap:8px;min-width:0}
+.row input[type=range]{flex:1;min-width:120px;accent-color:var(--water)}
+.grow{flex:1;min-width:220px}
+.seg{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.seg .lab{color:var(--muted);font-size:13px}
+button{font:inherit;font-size:14px;color:var(--fg);background:transparent;border:1px solid var(--rule);border-radius:6px;padding:5px 12px;cursor:pointer}
+button:hover{border-color:var(--muted)}
+button[aria-pressed="true"]{background:var(--fg);color:var(--panel);border-color:var(--fg)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--water);outline-offset:2px}
+canvas{display:block;width:100%;border-radius:8px}
+#field{height:380px}
+#brake{height:440px}
+#deep{height:300px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;border-top:1px solid var(--rule);padding-top:12px}
+.stats div{display:flex;flex-direction:column;gap:2px;min-width:0}
+.stats span{font-size:12px;color:var(--muted)}
+.stats strong{font-family:var(--f-mono);font-weight:500;font-size:16px;font-variant-numeric:tabular-nums}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:16px;height:3px;border-radius:2px;display:inline-block}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:20px}
+.two h3{font-size:15px;font-weight:500;margin:0 0 4px;display:flex;align-items:center;gap:8px}
+.two p{font-size:15px}
+.foot{font-size:13px;color:var(--muted)}
+.section{display:flex;flex-direction:column;gap:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <p class="eyebrow">Moon · Sun · Earth · the ocean in between</p>
+    <h1>How tides stretch the sea, slow the Earth and push the Moon away</h1>
+    <p class="lede">The same uneven pull that raises Hilo's tides is quietly reshaping the Earth–Moon system. Three models below: what makes the bulges, how the orbits change their size, and what happens because Earth spins faster than the Moon goes around it.</p>
+  </header>
+
+  <div class="section">
+    <div>
+      <p class="num">1 · The stretch</p>
+      <h2>Tides come from the difference in pull</h2>
+    </div>
+    <section class="panel" aria-label="Tidal force model">
+      <div class="row">
+        <label class="grow" for="el">Moon phase angle <input type="range" id="el" min="0" max="359" step="1" value="45"></label>
+        <span id="elLab" style="font-family:var(--f-mono);min-width:150px">-</span>
+      </div>
+      <div class="row">
+        <div class="seg" role="group" aria-label="Bodies"><span class="lab">Show</span>
+          <button type="button" data-b="moon" aria-pressed="false">Moon</button>
+          <button type="button" data-b="sun" aria-pressed="false">Sun</button>
+          <button type="button" data-b="both" aria-pressed="true">Both</button></div>
+        <div class="seg" role="group" aria-label="Moon distance"><span class="lab">Moon at</span>
+          <button type="button" data-md="363300" aria-pressed="false">Perigee</button>
+          <button type="button" data-md="384400" aria-pressed="true">Average</button>
+          <button type="button" data-md="405500" aria-pressed="false">Apogee</button></div>
+        <div class="seg" role="group" aria-label="Sun distance"><span class="lab">Earth at</span>
+          <button type="button" data-sd="147.1" aria-pressed="false">Perihelion (Jan)</button>
+          <button type="button" data-sd="149.6" aria-pressed="true">Average</button>
+          <button type="button" data-sd="152.1" aria-pressed="false">Aphelion (Jul)</button></div>
+      </div>
+      <canvas id="field" aria-label="Arrows showing the tidal stretch around Earth and the resulting water bulges"></canvas>
+      <div class="legend">
+        <span><i class="sw" style="background:var(--fg)"></i>Tidal force on the ocean (difference from the pull on Earth's center)</span>
+        <span><i class="sw" style="background:var(--water)"></i>Water surface, bulges hugely exaggerated</span>
+      </div>
+      <div class="stats">
+        <div><span>Moon's tidal strength</span><strong id="fM">-</strong></div>
+        <div><span>Sun's tidal strength</span><strong id="fS">-</strong></div>
+        <div><span>Combined bulge</span><strong id="fC">-</strong></div>
+        <div><span>Tide type</span><strong id="fT">-</strong></div>
+      </div>
+    </section>
+    <div class="two">
+      <div>
+        <h3>Stretch, not pull</h3>
+        <p>The Moon pulls the near side of Earth a little harder than the center, and the center a little harder than the far side. Subtract the pull on Earth's center and what's left points outward on both the near and far sides and inward around the middle. The ocean flows toward the two outward-pointing zones and piles into bulges.</p>
+      </div>
+      <div>
+        <h3>Why the Moon beats the Sun</h3>
+        <p>The Sun's gravity on Earth is about 180 times stronger than the Moon's, but tides depend on how fast gravity changes across Earth's width. That falls off with the cube of distance, not the square. The Sun is 390 times farther away, so its tidal effect ends up only about 46% of the Moon's.</p>
+      </div>
+    </div>
+    <p>Because of that cube, distance matters a lot. The Moon's elliptical orbit brings it about 10% closer at perigee than at apogee, which makes its tidal pull about 40% stronger. Earth is closest to the Sun in early January, adding about 5% to the Sun's share. When a full or new moon lands near perigee you get perigean spring tides, the "king tides" that flood low coastal roads.</p>
+  </div>
+
+  <div class="section">
+    <div>
+      <p class="num">2 · The brake</p>
+      <h2>Earth drags the bulge ahead of the Moon</h2>
+    </div>
+    <section class="panel" aria-label="Tidal braking model">
+      <div class="row">
+        <button id="bPlay" type="button" style="min-width:72px">Pause</button>
+        <label class="grow" for="lag">Bulge lead angle <input type="range" id="lag" min="0" max="35" step="1" value="20"></label>
+        <span id="lagLab" style="font-family:var(--f-mono);min-width:44px">20°</span>
+        <label for="spd">Speed <input type="range" id="spd" min="1" max="10" step="1" value="4" style="width:100px;flex:none"></label>
+      </div>
+      <canvas id="brake" aria-label="Top-down animation of Earth spinning under the Moon with the bulge carried ahead and the resulting forces"></canvas>
+      <div class="legend">
+        <span><i class="sw" style="background:var(--brake)"></i>Moon's pull on the bulges · slows Earth's spin</span>
+        <span><i class="sw" style="background:var(--boost)"></i>Bulges' pull on the Moon · speeds it along its orbit</span>
+      </div>
+      <div class="stats">
+        <div><span>Earth spins once per</span><strong>24 hours</strong></div>
+        <div><span>Moon orbits once per</span><strong>27.3 days</strong></div>
+        <div><span>Day lengthens by tides</span><strong>~2.3 ms / century</strong></div>
+        <div><span>Moon moves away</span><strong>3.8 cm / year</strong></div>
+      </div>
+    </section>
+    <div class="two">
+      <div>
+        <h3><i class="sw" style="background:var(--brake)"></i>Friction carries the bulge forward</h3>
+        <p>Earth turns once a day; the Moon takes 27 days to go around. The ocean and seafloor are dragged along with the spin, and water takes time to respond, so the bulge ends up carried a little ahead of the line to the Moon. The Moon's gravity tugs that leading bulge backward, like a hand on a spinning wheel. Most of the energy is lost as heat in shallow seas, where tidal currents scrub the seafloor.</p>
+      </div>
+      <div>
+        <h3><i class="sw" style="background:var(--boost)"></i>The Moon gets a forward push</h3>
+        <p>The pull works both ways. The leading bulge is closer to the Moon than the trailing one, so it tugs the Moon slightly forward along its orbit. That forward push adds energy, and an orbit with more energy is a bigger one. The Moon spirals outward about 3.8 cm a year, a rate measured by bouncing lasers off reflectors left on the Moon by Apollo astronauts.</p>
+      </div>
+    </div>
+    <p>Earth's lost spin doesn't vanish; it's handed to the Moon's orbit, and the total angular momentum stays the same. There's a twist: pushing the Moon forward makes it move slower. A wider orbit is a slower one, so the month stretches out even as the Moon gains energy. The real lead angle is only a few degrees and the open-ocean tide is less than a meter high; the model exaggerates both so you can see the forces.</p>
+  </div>
+
+  <div class="section">
+    <div>
+      <p class="num">3 · Deep time</p>
+      <h2>Shorter days in the past</h2>
+    </div>
+    <section class="panel" aria-label="Day length through geologic time">
+      <div class="row">
+        <label class="grow" for="age">Millions of years ago <input type="range" id="age" min="0" max="620" step="5" value="380"></label>
+        <span id="ageLab" style="font-family:var(--f-mono);min-width:80px">-</span>
+      </div>
+      <canvas id="deep" aria-label="Day length measured from fossils and tidal sediments, from 620 million years ago to today"></canvas>
+      <div class="stats">
+        <div><span>Length of a day</span><strong id="dDay">-</strong></div>
+        <div><span>Days in a year</span><strong id="dYear">-</strong></div>
+        <div><span>Evidence</span><strong id="dEv" style="font-family:var(--f-body);font-size:14px">-</strong></div>
+      </div>
+    </section>
+    <p>Corals and clams lay down growth bands every day and thicken them with the seasons, so counting bands per year counts days per year. The year itself hasn't changed length, so more days means shorter days. Layered tidal sediments do the same job for tides and months. Together they show days of about 22 hours some 400 to 600 million years ago, with the Moon a few percent closer.</p>
+    <p>The braking hasn't been steady. Today's ocean basins happen to amplify tides, so the Moon is retreating faster now than its long-term average; if tidal friction had always been as strong as it is today, the Moon would have been almost touching Earth only about 1.5 billion years ago, because the braking grows steeply as the Moon gets closer. The rock record rules that out. In the far future the process would end with Earth's day matching the month, but that would take far longer than the Sun will last.</p>
+    <p class="foot">Values are rounded. Measured points: Elatina Formation, South Australia, about 620 million years ago (about 400 days a year); Devonian corals, about 380 million years ago (about 400 days a year); a Late Cretaceous rudist clam, about 70 million years ago (about 372 days a year). Between points the chart draws straight lines, so in-between values are approximate. Day lengthening from tides alone is about 2.3 ms per century; the net change observed is smaller, about 1.8 ms, because Earth's shape is still rebounding from the last ice age.</p>
+  </div>
+  <p class="foot"><a href="./" style="color:inherit">All explainers</a></p>
+</div>
+<script>
+const D2R=Math.PI/180;
+let C={};const readC=()=>{const s=getComputedStyle(document.documentElement);['bg','panel','fg','muted','rule','space','water','waterfill','earth','moon','sun','brake','boost'].forEach(k=>C[k]=s.getPropertyValue('--'+k).trim());C.mono=s.getPropertyValue('--f-mono').trim();};
+function setup(c){const r=window.devicePixelRatio||1,w=c.clientWidth,h=c.clientHeight;c.width=w*r;c.height=h*r;const x=c.getContext('2d');x.setTransform(r,0,0,r,0,0);return{x,w,h};}
+function arrow(x,x0,y0,x1,y1,col,lw){const dx=x1-x0,dy=y1-y0,L=Math.hypot(dx,dy);if(L<2)return;x.strokeStyle=col;x.fillStyle=col;x.lineWidth=lw||1.5;x.beginPath();x.moveTo(x0,y0);x.lineTo(x1,y1);x.stroke();const ux=dx/L,uy=dy/L,hs=Math.min(8,3+L*0.25);x.beginPath();x.moveTo(x1,y1);x.lineTo(x1-ux*hs-uy*hs*0.5,y1-uy*hs+ux*hs*0.5);x.lineTo(x1-ux*hs+uy*hs*0.5,y1-uy*hs-ux*hs*0.5);x.closePath();x.fill();x.lineWidth=1;}
+const pressGroup=(sel,btn)=>document.querySelectorAll(sel).forEach(o=>o.setAttribute('aria-pressed',o===btn));
+let el=45,bodies='both',md=384400,sd=149.6;
+const phaseName=e=>['New moon','Waxing crescent','First quarter','Waxing gibbous','Full moon','Waning gibbous','Last quarter','Waning crescent'][Math.round(e/45)%8];
+function strengths(){const km=Math.pow(384400/md,3),ks=0.46*Math.pow(149.6/sd,3);return{km:bodies==='sun'?0:km,ks:bodies==='moon'?0:ks,kmR:km,ksR:ks};}
+function drawField(){const c=document.getElementById('field');const{x,w,h}=setup(c);x.fillStyle=C.space;x.fillRect(0,0,w,h);
+const{km,ks}=strengths(),cx=w*0.45,cy=h/2,R=Math.min(w,h)*0.22,em=el*D2R;x.font='11px '+C.mono;
+const amp=R*0.32;
+x.beginPath();for(let i=0;i<=200;i++){const a=i/200*2*Math.PI;const hh=km*Math.cos(2*(a-em))+ks*Math.cos(2*a);const r=R+amp*0.45+amp*0.5*hh;const px=cx+r*Math.cos(a),py=cy-r*Math.sin(a);i?x.lineTo(px,py):x.moveTo(px,py);}x.closePath();x.fillStyle=C.waterfill;x.fill();x.strokeStyle=C.water;x.lineWidth=1.5;x.stroke();x.lineWidth=1;
+x.fillStyle=C.earth;x.beginPath();x.arc(cx,cy,R,0,7);x.fill();
+for(let i=0;i<24;i++){const a=i/24*2*Math.PI;let fx=0,fy=0;[[km,em],[ks,0]].forEach(([k,b])=>{if(!k)return;const t=a-b,rad=k*(3*Math.cos(t)**2-1),tan=-k*1.5*Math.sin(2*t);fx+=rad*Math.cos(a)-tan*Math.sin(a);fy+=rad*Math.sin(a)+tan*Math.cos(a);});
+const px=cx+R*0.82*Math.cos(a),py=cy-R*0.82*Math.sin(a),s=R*0.16;arrow(x,px,py,px+fx*s,py-fy*s,C.fg,1.5);}
+if(bodies!=='moon'){x.fillStyle=C.sun;x.strokeStyle=C.sun;for(let k=-1;k<=1;k++){arrow(x,w-8,cy+k*R*0.7,w-36,cy+k*R*0.7,C.sun,1.5);}x.textAlign='right';x.fillStyle=C.sun;x.fillText('Sun',w-8,cy-R*0.7-10);}
+if(bodies!=='sun'){const orbit=Math.min(w*0.38,h*0.44),mx=cx+orbit*Math.cos(em),my=cy-orbit*Math.sin(em);x.strokeStyle=C.rule;x.beginPath();x.arc(cx,cy,orbit,0,7);x.stroke();x.fillStyle=C.moon;x.beginPath();x.arc(mx,my,10*Math.cbrt(Math.pow(384400/md,3)),0,7);x.fill();x.fillStyle=C.muted;x.textAlign='center';x.fillText('Moon',mx,my-16);}
+x.fillStyle=C.muted;x.textAlign='left';x.fillText('Looking down on the North Pole',8,16);}
+function updField(){document.getElementById('elLab').textContent=el+'° · '+phaseName(el);const{km,ks,kmR,ksR}=strengths();
+const comb=Math.sqrt(km*km+ks*ks+2*km*ks*Math.cos(2*el*D2R));
+document.getElementById('fM').textContent=bodies==='sun'?'off':Math.round(kmR*100)+'% of average';
+document.getElementById('fS').textContent=bodies==='moon'?'off':Math.round(ksR*100)+'% of avg Moon';
+document.getElementById('fC').textContent=comb.toFixed(2)+' × avg Moon';
+const c2=Math.cos(2*el*D2R);document.getElementById('fT').textContent=bodies!=='both'?'-':(c2>0.7?'Spring tide':(c2<-0.7?'Neap tide':'In between'));
+drawField();}
+document.getElementById('el').addEventListener('input',e=>{el=+e.target.value;updField();});
+document.querySelectorAll('[data-b]').forEach(b=>b.addEventListener('click',()=>{bodies=b.dataset.b;pressGroup('[data-b]',b);updField();}));
+document.querySelectorAll('[data-md]').forEach(b=>b.addEventListener('click',()=>{md=+b.dataset.md;pressGroup('[data-md]',b);updField();}));
+document.querySelectorAll('[data-sd]').forEach(b=>b.addEventListener('click',()=>{sd=+b.dataset.sd;pressGroup('[data-sd]',b);updField();}));
+let spin=0,moonA=0.6,lag=20,spd=4,running=true,last=null;
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;if(reduce){running=false;}
+function drawBrake(){const c=document.getElementById('brake');const{x,w,h}=setup(c);x.fillStyle=C.space;x.fillRect(0,0,w,h);x.font='11px '+C.mono;
+const cx=w*0.42,cy=h/2,R=Math.min(w,h)*0.13,orbit=Math.min(w*0.44,h*0.44),bA=moonA+lag*D2R,amp=R*0.45;
+const mx=cx+orbit*Math.cos(moonA),my=cy-orbit*Math.sin(moonA);
+x.strokeStyle=C.rule;x.beginPath();x.arc(cx,cy,orbit,0,7);x.stroke();
+x.setLineDash([3,4]);x.strokeStyle=C.moon;x.beginPath();x.moveTo(cx,cy);x.lineTo(mx,my);x.stroke();
+x.strokeStyle=C.water;x.beginPath();x.moveTo(cx-(R+amp+18)*Math.cos(bA),cy+(R+amp+18)*Math.sin(bA));x.lineTo(cx+(R+amp+18)*Math.cos(bA),cy-(R+amp+18)*Math.sin(bA));x.stroke();x.setLineDash([]);
+x.beginPath();for(let i=0;i<=200;i++){const a=i/200*2*Math.PI,cc=Math.cos(a-bA);const r=R+amp*0.25+amp*0.75*cc*cc;const px=cx+r*Math.cos(a),py=cy-r*Math.sin(a);i?x.lineTo(px,py):x.moveTo(px,py);}x.closePath();x.fillStyle=C.waterfill;x.fill();x.strokeStyle=C.water;x.lineWidth=1.5;x.stroke();x.lineWidth=1;
+x.fillStyle=C.earth;x.beginPath();x.arc(cx,cy,R,0,7);x.fill();
+for(let k=0;k<6;k++){const a=spin+k*Math.PI/3;x.strokeStyle='rgba(0,0,0,.18)';x.beginPath();x.moveTo(cx,cy);x.lineTo(cx+R*Math.cos(a),cy-R*Math.sin(a));x.stroke();}
+const hx=cx+R*Math.cos(spin),hy=cy-R*Math.sin(spin);x.fillStyle=C.fg;x.beginPath();x.arc(hx,hy,4,0,7);x.fill();
+x.strokeStyle=C.fg;x.lineWidth=1.5;x.beginPath();x.arc(cx,cy,R*0.55,-0.3,-1.4,true);x.stroke();const ea=-1.4;arrow(x,cx+R*0.55*Math.cos(ea+0.15),cy+R*0.55*Math.sin(ea+0.15),cx+R*0.55*Math.cos(ea),cy+R*0.55*Math.sin(ea),C.fg,1.5);
+x.fillStyle=C.fg;x.textAlign='center';x.fillText('spin',cx,cy+4);
+const rb=R+amp,P1=[cx+rb*Math.cos(bA),cy-rb*Math.sin(bA)],P2=[cx-rb*Math.cos(bA),cy+rb*Math.sin(bA)];
+const pull=(P,k)=>{const dx=mx-P[0],dy=my-P[1],L=Math.hypot(dx,dy);return[dx/L*k,dy/L*k];};
+const d1=Math.hypot(mx-P1[0],my-P1[1]),d2=Math.hypot(mx-P2[0],my-P2[1]),k1=44,k2=Math.max(14,44*Math.pow(d1/d2,2)*1.6);
+const f1=pull(P1,k1),f2=pull(P2,k2);
+if(lag>0){arrow(x,P1[0],P1[1],P1[0]+f1[0],P1[1]+f1[1],C.brake,2.5);arrow(x,P2[0],P2[1],P2[0]+f2[0],P2[1]+f2[1],C.brake,1.5);}
+const tA=moonA+Math.PI/2,tx=Math.cos(tA),ty=-Math.sin(tA);
+const g1=[(P1[0]-mx)/d1,(P1[1]-my)/d1],g2=[(P2[0]-mx)/d2,(P2[1]-my)/d2];
+const w1=1/(d1*d1),w2=1/(d2*d2);const tang=(g1[0]*tx+g1[1]*ty)*w1+(g2[0]*tx+g2[1]*ty)*w2;
+const mag=tang>0?46:0;
+x.fillStyle=C.moon;x.beginPath();x.arc(mx,my,11,0,7);x.fill();
+if(lag>0){arrow(x,mx,my,mx+(P1[0]-mx)/d1*34,my+(P1[1]-my)/d1*34,C.boost,1.5);arrow(x,mx,my,mx+tx*Math.max(10,mag),my+ty*Math.max(10,mag),C.boost,3);
+x.fillStyle=C.boost;x.textAlign='left';const lx=mx+tx*Math.max(10,mag),ly=my+ty*Math.max(10,mag);x.fillText('forward push',Math.max(4,Math.min(lx+6,w-90)),Math.max(14,Math.min(h-20,ly+(ty<0?-6:14))));}
+x.fillStyle=C.muted;x.textAlign='center';x.fillText('Moon',mx+Math.cos(moonA)*26,my-Math.sin(moonA)*26+4);
+{const ox=Math.cos(bA+0.9),oy=-Math.sin(bA+0.9);x.fillStyle=C.brake;x.textAlign=ox<0?'right':'left';x.fillText('pull on leading bulge',P1[0]+ox*22,P1[1]+oy*22+4);}
+x.fillStyle=C.muted;x.textAlign='left';x.fillText(lag>0?'Bulge leads the Moon by '+lag+'°':'No lead: no braking, no push',8,16);x.fillText('Earth spins 27× per Moon orbit (sped up)',8,h-10);}
+function loop(ts){if(last==null)last=ts;const dt=Math.min(0.05,(ts-last)/1000);last=ts;if(running){spin+=dt*spd*0.9;moonA+=dt*spd*0.9/27.3;drawBrake();}requestAnimationFrame(loop);}
+document.getElementById('lag').addEventListener('input',e=>{lag=+e.target.value;document.getElementById('lagLab').textContent=lag+'°';drawBrake();});
+document.getElementById('spd').addEventListener('input',e=>{spd=+e.target.value;});
+const bp=document.getElementById('bPlay');bp.textContent=running?'Pause':'Play';bp.addEventListener('click',()=>{running=!running;bp.textContent=running?'Pause':'Play';});
+const PTS=[[620,21.9,'Tidal sediment layers, South Australia'],[380,21.9,'Devonian coral growth bands'],[70,23.5,'Cretaceous rudist clam shell'],[0,24,'Today']];
+let age=380;
+function dayAt(a){for(let i=0;i<PTS.length-1;i++){const[a0,d0]=PTS[i],[a1,d1]=PTS[i+1];if(a<=a0&&a>=a1){return d0+(d1-d0)*(a0-a)/(a0-a1);}}return 24;}
+function drawDeep(){const c=document.getElementById('deep');const{x,w,h}=setup(c);const L=50,R=14,T=20,B=34,W=w-L-R,H=h-T-B;const X=a=>L+(620-a)/620*W,Y=d=>T+H-(d-21)/(24.5-21)*H;
+x.font='11px '+C.mono;
+[21,22,23,24].forEach(d=>{x.strokeStyle=C.rule;x.beginPath();x.moveTo(L,Y(d));x.lineTo(L+W,Y(d));x.stroke();x.fillStyle=C.muted;x.textAlign='right';x.fillText(d+' h',L-6,Y(d)+4);});
+[600,500,400,300,200,100,0].forEach(a=>{x.fillStyle=C.muted;x.textAlign='center';x.fillText(a===0?'today':a+' Mya',X(a),h-14);});
+x.strokeStyle=C.water;x.lineWidth=2;x.setLineDash([5,4]);x.beginPath();PTS.forEach(([a,d],i)=>{i?x.lineTo(X(a),Y(d)):x.moveTo(X(a),Y(d));});x.stroke();x.setLineDash([]);x.lineWidth=1;
+PTS.forEach(([a,d])=>{x.fillStyle=C.water;x.beginPath();x.arc(X(a),Y(d),5,0,7);x.fill();});
+const dd=dayAt(age);x.strokeStyle=C.fg;x.beginPath();x.moveTo(X(age),T);x.lineTo(X(age),T+H);x.stroke();x.fillStyle=C.fg;x.beginPath();x.arc(X(age),Y(dd),5,0,7);x.fill();
+x.fillStyle=C.fg;x.textAlign='left';x.font='500 12px '+C.mono;x.fillText('Length of a day',L,12);}
+function updDeep(){const dd=dayAt(age),pt=PTS.find(p=>Math.abs(p[0]-age)<=10);
+document.getElementById('ageLab').textContent=age===0?'today':age+' Mya';
+const hh=Math.floor(dd),mm=Math.round((dd-hh)*60);document.getElementById('dDay').textContent=hh+'h '+String(mm).padStart(2,'0')+'m';
+document.getElementById('dYear').textContent=Math.round(365.25*24/dd);
+document.getElementById('dEv').textContent=pt?pt[2]:'between measurements';drawDeep();}
+document.getElementById('age').addEventListener('input',e=>{age=+e.target.value;updDeep();});
+const redraw=()=>{readC();updField();drawBrake();updDeep();};
+try{matchMedia('(prefers-color-scheme: dark)').addEventListener('change',redraw);}catch(e){}
+new MutationObserver(redraw).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+window.addEventListener('resize',redraw);
+redraw();requestAnimationFrame(loop);
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(redraw);
+</script>
+</body>
+</html>

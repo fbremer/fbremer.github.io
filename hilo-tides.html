@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hilo Tides</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: reading column; live panel with two orbit diagrams over a 3-day tide curve and a 30-day overview, then short explanations */
+:root{
+  --bg:#F1F4F5;--panel:#FFFFFF;--fg:#132029;--muted:#566874;--rule:#D6DEE2;--space:#E9EEF1;
+  --water:#1F7EA6;--waterfill:rgba(31,126,166,.22);--earth:#7F9A6A;--moon:#7C7A9E;--sun:#E39A23;--hi:#1F7EA6;--lo:#B65C3A;
+  --f-display:"Newsreader",Georgia,"Times New Roman",serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0C1418;--panel:#141F25;--fg:#E3ECF0;--muted:#91A3AE;--rule:#25343D;--space:#0F191E;
+  --water:#4FB3DC;--waterfill:rgba(79,179,220,.25);--earth:#8FAE78;--moon:#B4B1D6;--sun:#F2B04A;--hi:#4FB3DC;--lo:#E58A66;color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0C1418;--panel:#141F25;--fg:#E3ECF0;--muted:#91A3AE;--rule:#25343D;--space:#0F191E;
+  --water:#4FB3DC;--waterfill:rgba(79,179,220,.25);--earth:#8FAE78;--moon:#B4B1D6;--sun:#F2B04A;--hi:#4FB3DC;--lo:#E58A66;color-scheme:dark}
+html,body{margin:0}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:16px;line-height:1.6;-webkit-text-size-adjust:100%}
+.wrap{max-width:840px;margin:0 auto;padding-block:32px 56px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:28px}
+.eyebrow{font-family:var(--f-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0}
+h1{font-family:var(--f-display);font-weight:500;font-size:clamp(30px,6vw,42px);line-height:1.1;margin:6px 0 10px;text-wrap:balance}
+h2{font-family:var(--f-display);font-weight:500;font-size:22px;margin:0 0 8px;text-wrap:balance}
+p{margin:0 0 12px;max-width:65ch}
+.lede{color:var(--muted);font-size:17px}
+.panel{background:var(--panel);border:1px solid var(--rule);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:14px}
+.ctrl{display:flex;align-items:center;gap:12px}
+.ctrl input[type=range]{flex:1;min-width:0;accent-color:var(--water)}
+button{font:inherit;font-size:14px;color:var(--fg);background:transparent;border:1px solid var(--rule);border-radius:6px;padding:6px 14px;cursor:pointer;min-width:72px}
+button:hover{border-color:var(--muted)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--water);outline-offset:2px}
+.date{font-family:var(--f-mono);font-weight:500;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.diag{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
+@media (max-width:600px){.diag{grid-template-columns:minmax(0,1fr)}}
+.cap{font-size:12px;color:var(--muted);margin:4px 0 0;text-align:center}
+canvas{display:block;width:100%}
+#top,#side{height:280px;border-radius:8px}
+#curve{height:260px}
+#month{height:150px;cursor:pointer}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;border-top:1px solid var(--rule);padding-top:12px}
+@media (max-width:600px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.stats div{display:flex;flex-direction:column;gap:2px;min-width:0}
+.stats span{font-size:12px;color:var(--muted)}
+.stats strong{font-family:var(--f-mono);font-weight:500;font-size:16px;font-variant-numeric:tabular-nums}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:20px}
+.two h3{font-size:15px;font-weight:500;margin:0 0 4px}
+.two p{font-size:15px}
+.foot{font-size:13px;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <p class="eyebrow">Hilo Bay, Hawaiʻi · NOAA station 1617760 · heights in feet above mean lower low water</p>
+    <h1>Why Hilo's tides rise and fall the way they do</h1>
+    <p class="lede">The Moon and Sun stretch the ocean into two bulges, and Earth turns Hilo through them about twice a day. Move through the next 30 days to see how their positions set each high and low, and why the two daily highs are rarely the same height.</p>
+  </header>
+
+  <section class="panel" aria-label="Tide model">
+    <div class="ctrl">
+      <button id="play" type="button">Play</button>
+      <input type="range" id="t" min="0" max="1440" step="1" value="0" aria-label="Time over the next 30 days">
+      <span class="date" id="tlab"></span>
+    </div>
+    <div class="diag">
+      <div><canvas id="top" aria-label="View from above the North Pole showing the tidal bulges, Moon, Sun and Hilo"></canvas><p class="cap">From above the North Pole. Bulges exaggerated and drawn where Hilo feels them, about 2¾ hours after the Moon passes overhead.</p></div>
+      <div><canvas id="side" aria-label="Side view showing how the Moon's declination tilts the bulges relative to Hilo's latitude"></canvas><p class="cap">Side view. The Moon's tilt north or south makes Hilo's two daily highs unequal.</p></div>
+    </div>
+    <div class="stats">
+      <div><span>Tide now</span><strong id="sNow">-</strong></div>
+      <div><span>Next high · low</span><strong id="sNext">-</strong></div>
+      <div><span>Moon</span><strong id="sMoon">-</strong></div>
+      <div><span>Moon declination</span><strong id="sDec">-</strong></div>
+    </div>
+    <canvas id="curve" aria-label="Predicted tide over three days around the chosen time"></canvas>
+    <canvas id="month" aria-label="Predicted tide over 30 days with Moon phases; click to jump"></canvas>
+  </section>
+
+  <section>
+    <h2>Two bulges, about two tides a day</h2>
+    <p>The Moon pulls hardest on the ocean facing it and weakest on the far side. Relative to Earth's center, the near water is pulled toward the Moon and the far water is left behind, so the ocean stretches into two bulges on opposite sides. As Earth turns, Hilo passes through both. The ocean can't keep up with the turning Earth, so at Hilo a high tide arrives on average about 2¾ hours after the Moon passes overhead or underfoot. The Moon also moves along its orbit, so Hilo needs about 24 hours 50 minutes to come back under it. That's why high tide arrives roughly 50 minutes later each day.</p>
+  </section>
+
+  <section>
+    <h2>Spring and neap tides</h2>
+    <p>The Sun raises its own pair of bulges, a bit less than half the size of the Moon's. At new and full moon the two sets line up and add, giving the larger spring tides. At first and last quarter they sit at right angles and partly cancel, giving the smaller neap tides. The 30-day chart shows the range swelling and shrinking on that two-week rhythm.</p>
+  </section>
+
+  <section>
+    <h2>Why Hilo's two highs are unequal</h2>
+    <div class="two">
+      <div>
+        <h3>The Moon swings north and south</h3>
+        <p>Over each month the Moon moves from about 28° north of the equator to 28° south and back. When it's well north or south, the bulges tilt with it, as in the side view. Hilo passes close to the center of one bulge but only grazes the other, so one high tide is clearly higher than the other.</p>
+      </div>
+      <div>
+        <h3>Hawaiʻi's mixed tide</h3>
+        <p>Many places have nearly equal highs. In Hawaiʻi the once-a-day part of the tide is unusually strong compared with the twice-a-day part, so the inequality is large. Hilo's tide is called mixed semidiurnal: two highs and two lows a day, often with one pair much weaker than the other, and sometimes a nearly flat stretch where a high and low almost merge.</p>
+      </div>
+    </div>
+    <p>When the Moon crosses the equator, roughly every two weeks, the bulges straighten and the two highs come out nearly equal again.</p>
+  </section>
+
+  <section>
+    <h2>Why the range is small</h2>
+    <p>On an average day Hilo's tide moves only about 2.4 feet between the higher high and the lower low. Real tides aren't simple bulges; they move as huge waves that slosh around each ocean basin, pivoting around points of near-zero tide. Hawaiʻi sits in the middle of the Pacific, far from the continental shelves that pile tides up, so its tides stay modest compared with places like the Pacific Northwest.</p>
+    <p class="foot">Curve computed from NOAA's harmonic constants for Hilo, including the yearly sea-level cycle. Checked against NOAA's official predictions for Oct 28 to Nov 27, 2026: every high and low is within about an inch, and most times are within a few minutes. The weak highs and lows, where the water barely turns, can be off by up to about 35 minutes. Weather, swell and wind can shift actual water levels. Not for navigation; use NOAA tide tables for that. Times are Hawaiʻi Standard Time.</p>
+  </section>
+  <p class="foot"><a href="./" style="color:inherit">All explainers</a></p>
+</div>
+<script>
+const D2R=Math.PI/180,HST=10*36e5,MSL_FT=0.349*3.28084;
+const CON=[['M2',.22,29.0,2,-2,2,0,0,'M2'],['S2',.091,34.6,2,0,0,0,0,''],['N2',.043,19.3,2,-3,2,1,0,'M2'],['K2',.026,26.6,2,0,2,0,0,'K2'],
+['K1',.163,233.4,1,0,1,0,-90,'K1'],['O1',.09,222.6,1,-2,1,0,90,'O1'],['P1',.05,231.2,1,0,-1,0,90,''],['Q1',.015,215.2,1,-3,1,1,90,'O1'],
+['J1',.011,246.4,1,1,1,-1,-90,'K1'],['OO1',.006,264.0,1,2,1,0,-90,''],['NU2',.009,27.3,2,-3,4,-1,0,'M2'],['MU2',.009,0.9,2,-4,4,0,0,'M2'],['2N2',.006,13.3,2,-4,2,2,0,'M2'],
+['SA',.046,188.2,0,0,1,0,0,''],['MM',.009,19.8,0,1,0,-1,0,''],['MF',.007,41.3,0,2,0,0,0,'']];
+function args(ms){const D=(ms-Date.UTC(2000,0,1,12))/864e5,ut=((ms/36e5)%24+24)%24;return{D,T:180+15*ut,s:218.3165+13.17639648*D,h:280.4661+0.98564736*D,p:83.3532+0.11140353*D,N:(125.0445-0.05295377*D)*D2R};}
+function tideFt(ms){const{T,s,h,p,N}=args(ms);const nod={'':[1,0],M2:[1-0.037*Math.cos(N),-2.1*Math.sin(N)],K1:[1.006+0.115*Math.cos(N),-8.9*Math.sin(N)],O1:[1.009+0.187*Math.cos(N),10.8*Math.sin(N)],K2:[1.024+0.286*Math.cos(N),-17.7*Math.sin(N)]};
+let z=0;for(const[,A,G,a,b,c,d,e,nd]of CON){const[f,u]=nod[nd];z+=f*A*Math.cos((a*T+b*s+c*h+d*p+e+u-G)*D2R);}return z*3.28084+MSL_FT;}
+function astro(ms){const{D,s,h,p}=args(ms);const Ms=(357.529+0.98560028*D)*D2R,Mm=(s-p)*D2R,F=(93.272+13.22935*D)*D2R;
+const lamS=h+1.915*Math.sin(Ms),lamM=s+6.289*Math.sin(Mm),beta=5.128*Math.sin(F),eps=23.44*D2R;
+const dec=Math.asin(Math.sin(beta*D2R)*Math.cos(eps)+Math.cos(beta*D2R)*Math.sin(eps)*Math.sin(lamM*D2R))/D2R;
+const el=((lamM-lamS)%360+360)%360;return{el,dec};}
+const now=Date.now(),start=Math.floor((now-HST)/864e5)*864e5+HST,SPAN=30*864e5,STEP=6*6e4;
+const series=[];for(let ms=start-2*864e5;ms<=start+SPAN+2*864e5;ms+=STEP)series.push([ms,tideFt(ms)]);
+const ext=[];for(let i=1;i<series.length-1;i++){const[a,b,c]=[series[i-1][1],series[i][1],series[i+1][1]];if(b>a&&b>=c)ext.push([series[i][0],b,'H']);else if(b<a&&b<=c)ext.push([series[i][0],b,'L']);}
+const phases=[];{let prev=astro(start).el;for(let ms=start+36e5;ms<=start+SPAN;ms+=36e5){const e=astro(ms).el;[[0,'New'],[90,'First quarter'],[180,'Full'],[270,'Last quarter']].forEach(([q,nm])=>{const a=((prev-q+540)%360)-180,b=((e-q+540)%360)-180;if(a<0&&b>=0)phases.push([ms,q,nm]);});prev=e;}}
+let C={};const readC=()=>{const s=getComputedStyle(document.documentElement);['bg','panel','fg','muted','rule','space','water','waterfill','earth','moon','sun','hi','lo'].forEach(k=>C[k]=s.getPropertyValue('--'+k).trim());C.mono=s.getPropertyValue('--f-mono').trim();};
+const H=ms=>new Date(ms-HST);
+const DOW=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const tstr=ms=>{const d=H(ms);let h=d.getUTCHours(),m=d.getUTCMinutes(),ap=h>=12?'PM':'AM';h=h%12||12;return h+':'+String(m).padStart(2,'0')+' '+ap;};
+const dstr=ms=>{const d=H(ms);return DOW[d.getUTCDay()]+' '+MON[d.getUTCMonth()]+' '+d.getUTCDate();};
+const phaseName=el=>{const n=['New moon','Waxing crescent','First quarter','Waxing gibbous','Full moon','Waning gibbous','Last quarter','Waning crescent'];return n[Math.round(el/45)%8];};
+let t=Math.round((now-start)/(30*6e4));t=Math.max(0,Math.min(1440,t));let timer=null;
+const cur=()=>start+t*30*6e4;
+function setup(c){const r=window.devicePixelRatio||1,w=c.clientWidth,h=c.clientHeight;c.width=w*r;c.height=h*r;const x=c.getContext('2d');x.setTransform(r,0,0,r,0,0);return{x,w,h};}
+function drawTop(){const c=document.getElementById('top');const{x,w,h}=setup(c);x.fillStyle=C.space;x.fillRect(0,0,w,h);const ms=cur(),{el}=astro(ms);
+const cx=w*0.44,cy=h/2,R=Math.min(w,h)*0.2,orbit=Math.min(w*0.4,h*0.42);
+x.font='11px '+C.mono;
+x.strokeStyle=C.sun;x.fillStyle=C.sun;x.lineWidth=1.5;for(let k=-1;k<=1;k++){const yy=cy+k*R*0.7;x.beginPath();x.moveTo(w-8,yy);x.lineTo(w-34,yy);x.stroke();x.beginPath();x.moveTo(w-34,yy);x.lineTo(w-28,yy-4);x.lineTo(w-28,yy+4);x.closePath();x.fill();}
+x.textAlign='right';x.fillText('Sun',w-8,cy-R*0.7-8);x.lineWidth=1;
+const em=el*D2R,amp=R*0.5,LAG=39*D2R;
+x.beginPath();for(let i=0;i<=180;i++){const a=i/180*2*Math.PI;const hh=Math.cos(2*(a-em-LAG))+0.46*Math.cos(2*(a-LAG));const r=R+amp*(0.5+hh/1.46*0.5)+2;const px=cx+r*Math.cos(a),py=cy-r*Math.sin(a);i?x.lineTo(px,py):x.moveTo(px,py);}
+x.closePath();x.fillStyle=C.waterfill;x.fill();x.strokeStyle=C.water;x.stroke();
+x.fillStyle=C.earth;x.beginPath();x.arc(cx,cy,R,0,7);x.fill();
+x.fillStyle='rgba(0,0,0,.28)';x.beginPath();x.arc(cx,cy,R,Math.PI/2,Math.PI*1.5);x.fill();
+const d=H(ms),lst=d.getUTCHours()+d.getUTCMinutes()/60-20.3/60,ha=(lst-12)*15*D2R;
+const hx=cx+R*Math.cos(ha),hy=cy-R*Math.sin(ha);
+x.strokeStyle=C.fg;x.setLineDash([2,3]);x.beginPath();x.moveTo(cx,cy);x.lineTo(hx,hy);x.stroke();x.setLineDash([]);
+x.fillStyle=C.fg;x.beginPath();x.arc(hx,hy,4.5,0,7);x.fill();
+x.textAlign=Math.cos(ha)>=0?'left':'right';x.fillText('Hilo',hx+(Math.cos(ha)>=0?8:-8),hy-Math.sin(ha)*10+4);
+const mx=cx+orbit*Math.cos(em),my=cy-orbit*Math.sin(em);
+x.strokeStyle=C.rule;x.beginPath();x.arc(cx,cy,orbit,0,7);x.stroke();
+x.fillStyle=C.moon;x.beginPath();x.arc(mx,my,9,0,7);x.fill();
+x.fillStyle='rgba(0,0,0,.55)';x.beginPath();x.arc(mx,my,9,Math.PI/2,Math.PI*1.5);x.fill();
+x.fillStyle=C.muted;x.textAlign='center';x.fillText('Moon',mx,my-14);
+x.textAlign='left';x.fillStyle=C.muted;x.fillText('Earth turns ↺',8,16);}
+function drawSide(){const c=document.getElementById('side');const{x,w,h}=setup(c);x.fillStyle=C.space;x.fillRect(0,0,w,h);const ms=cur(),{dec}=astro(ms);
+const cx=w*0.42,cy=h/2+4,R=Math.min(w,h)*0.24,amp=R*0.3,dm=dec*D2R;
+x.font='11px '+C.mono;
+const wr=a=>{const cc=Math.cos(a-dm);return R+amp*(0.25+0.75*(cc*cc));};
+x.beginPath();for(let i=0;i<=180;i++){const a=i/180*2*Math.PI,r=wr(a);const px=cx+r*Math.cos(a),py=cy-r*Math.sin(a);i?x.lineTo(px,py):x.moveTo(px,py);}x.closePath();x.fillStyle=C.waterfill;x.fill();x.strokeStyle=C.water;x.stroke();
+x.fillStyle=C.earth;x.beginPath();x.arc(cx,cy,R,0,7);x.fill();
+x.strokeStyle=C.muted;x.beginPath();x.moveTo(cx,cy-R-amp-14);x.lineTo(cx,cy+R+amp+14);x.stroke();
+x.fillStyle=C.muted;x.textAlign='center';x.fillText('N',cx,cy-R-amp-18);
+x.setLineDash([3,3]);x.beginPath();x.moveTo(cx-R-amp-6,cy);x.lineTo(cx+R+amp+6,cy);x.stroke();x.setLineDash([]);
+x.textAlign='left';x.fillText('equator',cx+R+amp+2,cy+14);
+const lat=19.72*D2R,ly=cy-R*Math.sin(lat),lx=R*Math.cos(lat);
+x.strokeStyle=C.fg;x.lineWidth=1.5;x.beginPath();x.moveTo(cx-lx,ly);x.lineTo(cx+lx,ly);x.stroke();x.lineWidth=1;
+const near=wr(lat)-R,far=wr(Math.PI-lat)-R;
+[[cx+lx,ly,near,'toward Moon'],[cx-lx,ly,far,'12 h later']].forEach(([px,py,hgt,l],i)=>{x.fillStyle=C.fg;x.beginPath();x.arc(px,py,4,0,7);x.fill();const a=i?Math.PI-lat:lat;
+const ex=cx+(R+hgt)*Math.cos(a),ey=cy-(R+hgt)*Math.sin(a);x.strokeStyle=C.water;x.lineWidth=3;x.beginPath();x.moveTo(px,py);x.lineTo(ex,ey);x.stroke();x.lineWidth=1;});
+x.fillStyle=C.fg;x.textAlign='center';x.fillText('Hilo 19.7° N',cx,ly-6);
+const mx=Math.min(w-14,cx+R+amp+70),my=cy-Math.tan(dm)*(mx-cx);
+x.strokeStyle=C.moon;x.setLineDash([2,4]);x.beginPath();x.moveTo(cx,cy);x.lineTo(mx,my);x.stroke();x.setLineDash([]);
+x.fillStyle=C.moon;x.beginPath();x.arc(mx,my,8,0,7);x.fill();x.fillStyle=C.muted;x.textAlign='right';x.fillText('Moon '+(dec>=0?dec.toFixed(0)+'° N':(-dec).toFixed(0)+'° S'),w-6,14);
+const ratio=Math.abs(near-far)/Math.max(near,far);x.textAlign='left';x.fillText(ratio<0.12?'two highs nearly equal':(near>far?'higher high facing Moon':'higher high on far side'),8,h-10);}
+function nearest(ms){let i=Math.round((ms-series[0][0])/STEP);return series[Math.max(0,Math.min(series.length-1,i))][1];}
+function drawCurve(){const c=document.getElementById('curve');const{x,w,h}=setup(c);const ms=cur(),a=ms-1.5*864e5,b=ms+1.5*864e5;const L=44,R=8,T=24,B=24,W=w-L-R,Hh=h-T-B;
+const lo=-0.6,hi=3.4;const X=m=>L+(m-a)/(b-a)*W,Y=v=>T+Hh-(v-lo)/(hi-lo)*Hh;
+x.font='500 12px '+C.mono;x.fillStyle=C.fg;x.textAlign='left';x.fillText('Tide height, 3 days (ft)',L,14);x.font='11px '+C.mono;
+for(let v=0;v<=3;v++){x.strokeStyle=C.rule;x.beginPath();x.moveTo(L,Y(v));x.lineTo(L+W,Y(v));x.stroke();x.fillStyle=C.muted;x.textAlign='right';x.fillText(v,L-6,Y(v)+4);}
+for(let d=Math.ceil((a-HST)/864e5)*864e5+HST;d<b;d+=864e5){x.strokeStyle=C.rule;x.setLineDash([2,3]);x.beginPath();x.moveTo(X(d),T);x.lineTo(X(d),T+Hh);x.stroke();x.setLineDash([]);x.fillStyle=C.muted;x.textAlign='left';x.fillText(dstr(d),X(d)+4,h-8);}
+x.beginPath();let first=true;series.forEach(([m,v])=>{if(m<a||m>b)return;const p=[X(m),Y(v)];first?x.moveTo(...p):x.lineTo(...p);first=false;});
+x.lineTo(X(b),Y(lo));x.lineTo(X(a),Y(lo));x.closePath();x.fillStyle=C.waterfill;x.fill();
+x.strokeStyle=C.water;x.lineWidth=2;x.beginPath();first=true;series.forEach(([m,v])=>{if(m<a||m>b)return;const p=[X(m),Y(v)];first?x.moveTo(...p):x.lineTo(...p);first=false;});x.stroke();x.lineWidth=1;
+ext.forEach(([m,v,ty])=>{if(m<a+36e5||m>b-36e5)return;x.fillStyle=ty==='H'?C.hi:C.lo;x.beginPath();x.arc(X(m),Y(v),3,0,7);x.fill();x.textAlign='center';x.fillText(tstr(m).replace(' ',''),X(m),ty==='H'?Y(v)-8:Y(v)+16);});
+x.strokeStyle=C.fg;x.beginPath();x.moveTo(X(ms),T);x.lineTo(X(ms),T+Hh);x.stroke();x.fillStyle=C.fg;x.beginPath();x.arc(X(ms),Y(nearest(ms)),5,0,7);x.fill();}
+function drawMonth(){const c=document.getElementById('month');const{x,w,h}=setup(c);const a=start,b=start+SPAN;const L=44,R=8,T=34,B=20,W=w-L-R,Hh=h-T-B,lo=-0.6,hi=3.4;const X=m=>L+(m-a)/(b-a)*W,Y=v=>T+Hh-(v-lo)/(hi-lo)*Hh;
+x.font='500 12px '+C.mono;x.fillStyle=C.fg;x.textAlign='left';x.fillText('Next 30 days · click to jump',L,14);x.font='11px '+C.mono;
+[0,3].forEach(v=>{x.strokeStyle=C.rule;x.beginPath();x.moveTo(L,Y(v));x.lineTo(L+W,Y(v));x.stroke();x.fillStyle=C.muted;x.textAlign='right';x.fillText(v,L-6,Y(v)+4);});
+x.strokeStyle=C.water;x.beginPath();let f=true;series.forEach(([m,v])=>{if(m<a||m>b)return;const p=[X(m),Y(v)];f?x.moveTo(...p):x.lineTo(...p);f=false;});x.stroke();
+phases.forEach(([m,q])=>{const px=X(m),py=24;x.strokeStyle=C.moon;x.fillStyle=C.moon;x.beginPath();x.arc(px,py,5,0,7);if(q===180)x.fill();else x.stroke();if(q===90||q===270){x.beginPath();x.arc(px,py,5,q===90?-Math.PI/2:Math.PI/2,q===90?Math.PI/2:Math.PI*1.5);x.fill();}
+x.strokeStyle=C.rule;x.setLineDash([2,3]);x.beginPath();x.moveTo(px,30);x.lineTo(px,T+Hh);x.stroke();x.setLineDash([]);});
+for(let k=0;k<=30;k+=7){x.fillStyle=C.muted;x.textAlign='center';const d=H(a+k*864e5);x.fillText(MON[d.getUTCMonth()]+' '+d.getUTCDate(),Math.min(Math.max(X(a+k*864e5),L+20),L+W-20),h-4);}
+const ms=cur();x.strokeStyle=C.fg;x.lineWidth=1.5;x.beginPath();x.moveTo(X(ms),T-4);x.lineTo(X(ms),T+Hh);x.stroke();x.lineWidth=1;}
+function upd(){const ms=cur(),v=nearest(ms),v2=nearest(ms+12*6e4),{el,dec}=astro(ms);
+document.getElementById('tlab').textContent=dstr(ms)+' · '+tstr(ms);
+document.getElementById('sNow').textContent=v.toFixed(1)+' ft '+(v2>v?'↑':'↓');
+const nh=ext.find(e=>e[0]>ms&&e[2]==='H'),nl=ext.find(e=>e[0]>ms&&e[2]==='L');
+document.getElementById('sNext').textContent=(nh?tstr(nh[0]):'-')+' · '+(nl?tstr(nl[0]):'-');
+const illum=Math.round((1-Math.cos(el*D2R))/2*100);
+document.getElementById('sMoon').textContent=phaseName(el)+' '+illum+'%';
+document.getElementById('sDec').textContent=(dec>=0?dec.toFixed(0)+'° N':(-dec).toFixed(0)+'° S');
+drawTop();drawSide();drawCurve();drawMonth();}
+const sl=document.getElementById('t');sl.value=t;sl.addEventListener('input',e=>{t=+e.target.value;upd();});
+document.getElementById('month').addEventListener('click',e=>{const r=e.currentTarget.getBoundingClientRect(),L=44,W=r.width-44-8;const f=Math.max(0,Math.min(1,(e.clientX-r.left-L)/W));t=Math.round(f*1440);sl.value=t;upd();});
+const pb=document.getElementById('play');pb.addEventListener('click',()=>{if(timer){clearInterval(timer);timer=null;pb.textContent='Play';}else{timer=setInterval(()=>{t=(t+1)%1441;sl.value=t;upd();},60);pb.textContent='Pause';}});
+const reTheme=()=>{readC();upd();};
+try{matchMedia('(prefers-color-scheme: dark)').addEventListener('change',reTheme);}catch(e){}
+new MutationObserver(reTheme).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+window.addEventListener('resize',upd);
+readC();upd();
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(upd);
+</script>
+</body>
+</html>
