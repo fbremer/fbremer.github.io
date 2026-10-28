@@ -1,4 +1,4 @@
-# Sky and sea over Hilo
+# Sky and sea of Hilo
 
 Interactive explainers, published at https://fbremer.github.io:
 
