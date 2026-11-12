@@ -102,8 +102,8 @@ tr:last-child td{border-bottom:none}
     <a href="#analemma" data-view="analemma">Analemma</a>
   </nav>
   <form class="places" id="places" autocomplete="off">
-    <label for="p-a"><span><i class="dot" style="background:var(--a)"></i>First place</span><input id="p-a" list="p-list" placeholder="City, or lat,lon,Area/Zone,Name" spellcheck="false"></label>
-    <label for="p-b"><span><i class="dot" style="background:var(--b)"></i>Second place</span><input id="p-b" list="p-list" placeholder="City, or lat,lon,Area/Zone,Name" spellcheck="false"></label>
+    <label for="p-a"><span><i class="dot" style="background:var(--a)"></i>First place</span><input id="p-a" list="p-list" placeholder="City, or lat,lon,Name" spellcheck="false"></label>
+    <label for="p-b"><span><i class="dot" style="background:var(--b)"></i>Second place</span><input id="p-b" list="p-list" placeholder="City, or lat,lon,Name" spellcheck="false"></label>
     <button type="submit" class="go">Compare</button>
     <datalist id="p-list"></datalist>
   </form>
@@ -278,7 +278,7 @@ tr:last-child td{border-bottom:none}
     </section>
   </main>
 
-  <p class="foot" style="margin-top:28px">Put two places in the link to share a comparison: <code>?a=Place&amp;b=Place</code>, with a city name, a city and region such as <code>Springfield, Illinois</code>, or <code>lat,lon,Area/Zone,Name</code>. Typed city names are looked up with the free <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> geocoder. Times come from standard solar-position approximations and your browser's time-zone rules, accurate to about a minute. Made with AI assistance. Not for navigation.</p>
+  <p class="foot" style="margin-top:28px">Put two places in the link to share a comparison: <code>?a=Place&amp;b=Place</code>, with a city name, a city and region such as <code>Springfield, Illinois</code>, or coordinates as <code>lat,lon,Name</code> (the name is optional). City names are looked up with the free <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> geocoder, which takes the most populous match, and coordinates get their time zone from Open-Meteo too; <code>lat,lon,Area/Zone,Name</code> needs no lookup. Times come from standard solar-position approximations and your browser's time-zone rules, accurate to about a minute. Made with AI assistance. Not for navigation.</p>
 </div>
 
 <script>
@@ -337,7 +337,7 @@ SS.place=(label,lat,lon,tz,note)=>{
   p.dst=on?{on,off}:null;p.dstAmt=Math.max(...p.off)-p.std;
   return p;};
 
-/* Resolve what someone typed: lat,lon,Area/Zone; a built-in city; or a geocoder lookup. */
+/* Resolve what someone typed: lat,lon,Area/Zone; lat,lon (zone looked up); a built-in city; or a geocoder lookup. */
 const norm=s=>s.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().trim();
 SS.resolve=async spec=>{
   spec=(spec||'').trim();if(!spec)throw new Error('Type a place.');
@@ -347,6 +347,16 @@ SS.resolve=async spec=>{
     if(!validTz(tz))throw new Error(`${tz} isn't a time zone this browser knows.`);
     const coords=SS.latStr(lat)+', '+SS.lonStr(lon);
     if(m[4]&&m[4].trim())return SS.place(m[4].trim(),lat,lon,tz,coords+' · '+tz);
+    const p=SS.place(coords,lat,lon,tz,tz);p.coord=true;return p;}
+  const q=spec.match(/^(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*(?:,\s*([^,]{1,40}))?\s*$/);
+  if(q){const lat=+q[1],lon=+q[2];
+    if(Math.abs(lat)>66||Math.abs(lon)>180)throw new Error(`${spec}: latitude must be within 66° of the equator and longitude within 180°.`);
+    let tz;
+    try{const r=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&timezone=auto&forecast_days=1`);if(!r.ok)throw 0;tz=(await r.json()).timezone;}
+    catch(e){}
+    if(!tz||!validTz(tz))throw new Error(`Couldn't find the time zone for ${spec}. Add it: lat,lon,Area/Zone,Name.`);
+    const coords=SS.latStr(lat)+', '+SS.lonStr(lon);
+    if(q[3]&&q[3].trim())return SS.place(q[3].trim(),lat,lon,tz,coords+' · '+tz);
     const p=SS.place(coords,lat,lon,tz,tz);p.coord=true;return p;}
   const w=SS.WORLD.find(c=>norm(c[0])===norm(spec));
   if(w)return SS.place(w[0],w[1],w[2],w[3],w[3]);

@@ -12,10 +12,12 @@ Put them in the link:
 ```
 https://fbremer.github.io/shifting-sun/?a=Honolulu&b=London
 https://fbremer.github.io/shifting-sun/?a=Springfield,%20Illinois&b=Tokyo#analemma
+https://fbremer.github.io/shifting-sun/?a=19.7241,-155.0868,Hilo&b=40.4406,-79.9959,Pittsburgh
 https://fbremer.github.io/shifting-sun/?a=-33.9,18.4,Africa/Johannesburg,Cape%20Town&b=64.1,-21.9,Atlantic/Reykjavik
 ```
 
-- A city name is looked up with the free [Open-Meteo geocoder](https://open-meteo.com/) (no key). Add a region after a comma to pick between same-named places.
+- A city name is looked up with the free [Open-Meteo geocoder](https://open-meteo.com/) (no key), which takes the most populous match. Add a region after a comma to pick between same-named places.
+- `lat,lon,Name` uses those coordinates and looks up their time zone with Open-Meteo. The name is optional.
 - `lat,lon,Area/Zone,Name` needs no lookup. The name is optional.
 - With no places in the link, the page compares Honolulu and London.
 - `#compare` and `#analemma` pick the view.
