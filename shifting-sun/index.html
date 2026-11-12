@@ -1,0 +1,596 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Shifting Sun</title>
+<meta name="description" content="Compare sunrise, sunset, day length and the analemma for any two places through the year.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column; a two-tab nav and the two place boxes on top, then either the sunrise comparison or the analemma */
+:root{
+  --bg:#F2F4F6;--panel:#FFFFFF;--fg:#15212C;--muted:#5B6976;--rule:#D9DFE5;--sky:#EAF1F8;--warn:#A4471B;
+  --sun:#E39A23;--earth:#2F7FD1;--ecc:#7468D2;--obl:#1B9478;--dec:#2F7FD1;--a:#B9700F;--b:#B83E72;
+  --f-display:"Newsreader",Georgia,"Times New Roman",serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0D141B;--panel:#151F29;--fg:#E4EBF1;--muted:#93A2AF;--rule:#26333F;--sky:#13202D;--warn:#F08A5D;
+  --sun:#F2B04A;--earth:#5BA3EC;--ecc:#A39AF0;--obl:#43C39F;--dec:#5BA3EC;--a:#E7A13F;--b:#EC7FAD;color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0D141B;--panel:#151F29;--fg:#E4EBF1;--muted:#93A2AF;--rule:#26333F;--sky:#13202D;--warn:#F08A5D;
+  --sun:#F2B04A;--earth:#5BA3EC;--ecc:#A39AF0;--obl:#43C39F;--dec:#5BA3EC;--a:#E7A13F;--b:#EC7FAD;color-scheme:dark}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:16px;line-height:1.6;-webkit-text-size-adjust:100%}
+.wrap{max-width:820px;margin:0 auto;padding-block:20px 56px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.view{display:flex;flex-direction:column;gap:28px}
+.nav{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid var(--rule)}
+.brand{font-family:var(--f-display);font-weight:500;font-size:20px;margin-right:auto}
+.nav a{font-size:14px;color:var(--fg);text-decoration:none;border:1px solid var(--rule);border-radius:999px;padding:4px 14px}
+.nav a:hover{border-color:var(--muted)}
+.nav a[aria-current="page"]{background:var(--fg);color:var(--panel);border-color:var(--fg)}
+.nav a:focus-visible{outline:2px solid var(--earth);outline-offset:2px}
+.places{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:flex-end;margin:0 0 6px}
+.places label{display:flex;flex-direction:column;gap:2px;flex:1 1 200px;min-width:0;font-size:13px;color:var(--muted)}
+.places label span{display:inline-flex;align-items:center;gap:6px}
+.places input{font:inherit;font-size:15px;color:var(--fg);background:var(--panel);border:1px solid var(--rule);border-radius:6px;padding:6px 10px;width:100%;min-width:0}
+.status{font-size:13px;color:var(--muted);margin:0 0 24px;min-height:1.6em}
+.status.err{color:var(--warn)}
+.eyebrow{font-family:var(--f-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0}
+h1{font-family:var(--f-display);font-weight:500;font-size:clamp(30px,6vw,42px);line-height:1.1;margin:6px 0 10px;text-wrap:balance}
+h2{font-family:var(--f-display);font-weight:500;font-size:22px;margin:0 0 8px;text-wrap:balance}
+p{margin:0 0 12px;max-width:65ch}
+.lede{color:var(--muted);font-size:17px}
+.panel{background:var(--panel);border:1px solid var(--rule);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.ctrl{display:flex;align-items:center;gap:12px}
+.ctrl input[type=range]{flex:1;min-width:0;accent-color:var(--sun)}
+button{font:inherit;font-size:14px;color:var(--fg);background:transparent;border:1px solid var(--rule);border-radius:6px;padding:6px 14px;cursor:pointer}
+button:hover{border-color:var(--muted)}
+button[aria-pressed="true"],button.go{background:var(--fg);color:var(--panel);border-color:var(--fg)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--earth);outline-offset:2px}
+.play{min-width:72px}
+.date{font-family:var(--f-mono);font-weight:500;min-width:64px;text-align:right;font-variant-numeric:tabular-nums}
+canvas{display:block;width:100%}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:16px;height:3px;border-radius:2px;display:inline-block}
+.dot{width:10px;height:10px;border-radius:50%;display:inline-block;flex:none}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px}
+.two > div{min-width:0}
+.two h3{font-size:15px;font-weight:500;margin:0 0 4px;display:flex;align-items:center;gap:8px}
+.two p{font-size:15px}
+.foot{font-size:13px;color:var(--muted)}
+.foot a{color:inherit}
+.opts{display:flex;flex-wrap:wrap;gap:10px 20px;align-items:center;font-size:14px}
+.seg{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.seg .lab{color:var(--muted);font-size:13px;margin-right:2px}
+/* comparison */
+#c-orb{height:300px;cursor:grab;touch-action:none}
+.hint{font-size:12px;color:var(--muted);text-align:center;margin:-6px 0 0}
+.cmp{border-top:1px solid var(--rule);padding-top:4px;overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--rule)}
+th{font-weight:500;color:var(--muted);font-size:12px;letter-spacing:.04em;text-transform:uppercase;white-space:nowrap}
+td.n{font-family:var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+tr:last-child td{border-bottom:none}
+.city{display:inline-flex;align-items:center;gap:8px;font-weight:500;white-space:nowrap}
+.zone{font-family:var(--f-mono);font-size:12px;color:var(--muted);font-weight:400}
+.sub{color:var(--muted);font-size:12px}
+#c-ch{height:600px}
+.tbl{overflow-x:auto}
+.gap{font-size:14px;color:var(--muted);margin:0}
+.gap strong{color:var(--fg);font-weight:500}
+/* analemma */
+#v-analemma .panel{gap:14px}
+.skies,.strips{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
+@media (max-width:640px){.skies,.strips{grid-template-columns:minmax(0,1fr)}}
+.sky{height:480px;border-radius:8px}
+#a-dec,#a-eot{height:220px}
+.readout{font-family:var(--f-mono);font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.readout strong{color:var(--fg);font-weight:500}
+@media (prefers-reduced-motion: reduce){*{scroll-behavior:auto}}
+</style>
+
+<div class="wrap">
+  <nav class="nav" aria-label="Pages">
+    <span class="brand">Shifting Sun</span>
+    <a href="#compare" data-view="compare">Sunrise and sunset</a>
+    <a href="#analemma" data-view="analemma">Analemma</a>
+  </nav>
+  <form class="places" id="places" autocomplete="off">
+    <label for="p-a"><span><i class="dot" style="background:var(--a)"></i>First place</span><input id="p-a" list="p-list" placeholder="City, or lat,lon,Area/Zone,Name" spellcheck="false"></label>
+    <label for="p-b"><span><i class="dot" style="background:var(--b)"></i>Second place</span><input id="p-b" list="p-list" placeholder="City, or lat,lon,Area/Zone,Name" spellcheck="false"></label>
+    <button type="submit" class="go">Compare</button>
+    <datalist id="p-list"></datalist>
+  </form>
+  <p class="status" id="p-status" role="status"></p>
+
+  <!-- ===================== Sunrise and sunset ===================== -->
+  <main class="view" id="v-compare">
+    <header>
+      <p class="eyebrow" id="c-eyebrow"></p>
+      <h1>Two places, one shifting sun</h1>
+      <p class="lede" id="c-lede"></p>
+    </header>
+
+    <section class="panel" aria-label="Orbit model and the day's comparison">
+      <div class="opts">
+        <div class="seg" role="group" aria-label="Times shown as">
+          <span class="lab">Times</span>
+          <button type="button" data-clock="clock" aria-pressed="true">Clock time</button>
+          <button type="button" data-clock="std" aria-pressed="false">Standard time</button>
+        </div>
+      </div>
+      <div class="ctrl">
+        <button id="c-play" class="play" type="button" aria-label="Play through the year">Play</button>
+        <input type="range" id="c-day" min="1" max="365" step="1" value="287" aria-label="Day of year">
+        <span class="date" id="c-dlab">Oct 14</span>
+      </div>
+      <canvas id="c-orb" aria-label="Earth on its orbit with tilted axis; drag to rotate"></canvas>
+      <p class="hint">Drag to rotate. Orbit shape and speed changes are exaggerated so they're visible.</p>
+      <div class="cmp"><table>
+        <thead><tr><th>Local time</th><th>Sunrise</th><th>Sunset</th><th>Solar noon</th><th>Day length</th></tr></thead>
+        <tbody id="c-today"></tbody>
+      </table></div>
+      <p class="gap" id="c-gap"></p>
+    </section>
+
+    <section class="panel" aria-label="Year charts for both places">
+      <canvas id="c-ch" aria-label="Equation of time, sunrise, sunset and day length across the year for both places"></canvas>
+      <div class="legend">
+        <span><i class="dot" style="background:var(--a)"></i><span id="c-lg-a"></span></span>
+        <span><i class="dot" style="background:var(--b)"></i><span id="c-lg-b"></span></span>
+        <span><i class="sw" style="background:var(--ecc)"></i>Elliptical orbit effect</span>
+        <span><i class="sw" style="background:var(--obl)"></i>Axial tilt effect</span>
+        <span><i class="sw" style="background:var(--fg)"></i>Combined shift of solar noon</span>
+        <span>○ Clock-time extreme</span>
+      </div>
+    </section>
+
+    <section>
+      <h2>Why noon drifts: two orbital effects</h2>
+      <div class="two">
+        <div>
+          <h3><i class="sw" style="background:var(--ecc)"></i>Elliptical orbit</h3>
+          <p>Earth moves fastest at perihelion in early January. Each day it has to turn a little farther to bring the Sun back overhead, so solar days run long. The lag swings about ±7.5 minutes once a year.</p>
+        </div>
+        <div>
+          <h3><i class="sw" style="background:var(--obl)"></i>Axial tilt</h3>
+          <p>The axis keeps pointing the same way in space. Near the solstices the Sun's apparent path runs parallel to the equator, so it gains more eastward ground per day than at the equinoxes. That swings about ±10 minutes, twice a year.</p>
+        </div>
+      </div>
+      <p>In late December both effects push solar noon later by about 30 seconds a day, while day length barely changes near the solstice. North of the tropics, sunrise keeps getting later for weeks after the shortest day, which is why the latest sunrise lands in January rather than on December 21. In June the tilt effect alone pulls the earliest sunrise before the solstice and the latest sunset after it. These effects come from Earth's orbit, so they're the same everywhere on the planet.</p>
+    </section>
+
+    <section>
+      <h2>What they share, and where they differ</h2>
+      <div class="two">
+        <div>
+          <h3>Clock offset</h3>
+          <p id="c-p-offset"></p>
+        </div>
+        <div>
+          <h3>Latitude</h3>
+          <p id="c-p-lat"></p>
+        </div>
+        <div>
+          <h3>Daylight saving</h3>
+          <p id="c-p-dst"></p>
+        </div>
+      </div>
+      <p id="c-p-same"></p>
+    </section>
+
+    <section>
+      <h2>Extremes side by side</h2>
+      <div class="tbl"><table>
+        <thead><tr><th>Event</th><th><span class="city"><i class="dot" style="background:var(--a)"></i><span id="c-th-a"></span></span></th><th><span class="city"><i class="dot" style="background:var(--b)"></i><span id="c-th-b"></span></span></th></tr></thead>
+        <tbody id="c-ext"></tbody>
+      </table></div>
+      <p class="foot" id="c-foot" style="margin-top:10px"></p>
+    </section>
+  </main>
+
+  <!-- ===================== Analemma ===================== -->
+  <main class="view" id="v-analemma" hidden>
+    <header>
+      <p class="eyebrow" id="a-eyebrow"></p>
+      <h1 id="a-h1">The figure 8 the Sun draws</h1>
+      <p class="lede" id="a-lede"></p>
+    </header>
+
+    <section class="panel" aria-label="Interactive analemma for both places">
+      <div class="ctrl">
+        <button id="a-play" class="play" type="button">Play</button>
+        <input type="range" id="a-day" min="1" max="365" step="1" value="287" aria-label="Day of year">
+        <span class="date" id="a-dlab">Oct 14</span>
+      </div>
+      <div class="opts">
+        <div class="seg" role="group" aria-label="Side-to-side shift from">
+          <span class="lab">Side-to-side shift from</span>
+          <button type="button" data-mode="both" aria-pressed="true">Both</button>
+          <button type="button" data-mode="obl" aria-pressed="false">Tilt only</button>
+          <button type="button" data-mode="ecc" aria-pressed="false">Orbit only</button>
+        </div>
+        <div class="seg" role="group" aria-label="Sideways stretch">
+          <span class="lab">Width</span>
+          <button type="button" data-st="1" aria-pressed="false">True</button>
+          <button type="button" data-st="3" aria-pressed="true">×3</button>
+        </div>
+      </div>
+      <div class="skies">
+        <canvas id="a-sky-a" class="sky" aria-label="The analemma in the first place's sky"></canvas>
+        <canvas id="a-sky-b" class="sky" aria-label="The analemma in the second place's sky"></canvas>
+      </div>
+      <div class="strips">
+        <canvas id="a-dec" aria-label="Declination through the year"></canvas>
+        <canvas id="a-eot" aria-label="Minutes the Sun runs ahead or behind the clock through the year"></canvas>
+      </div>
+      <div class="legend">
+        <span><i class="sw" style="background:var(--dec)"></i>Up–down: declination</span>
+        <span><i class="sw" style="background:var(--obl)"></i>Tilt effect</span>
+        <span><i class="sw" style="background:var(--ecc)"></i>Orbit effect</span>
+        <span><i class="sw" style="background:var(--fg)"></i>Combined</span>
+        <span>○ Sun straight overhead</span>
+      </div>
+      <div class="readout" id="a-read"></div>
+    </section>
+
+    <section>
+      <h2>Why clock time, not solar noon</h2>
+      <p>At true solar noon the Sun is always exactly on the north–south line, so a year of solar-noon photos would make a straight vertical stripe. The figure 8 appears when you hold the clock fixed. Some days the Sun reaches the meridian before the photo is taken and has drifted west by then; other days it hasn't arrived yet and still sits to the east. That east–west scatter is the equation of time turned into an angle: each minute is a quarter of a degree.</p>
+    </section>
+
+    <section>
+      <h2>Why it's an 8</h2>
+      <div class="two">
+        <div>
+          <h3><i class="sw" style="background:var(--dec)"></i>Up and down, once a year</h3>
+          <p>The tilt of Earth's axis carries the Sun north of the equator in June and south of it in December. That's one full swing per year, and it sets the height of the figure.</p>
+        </div>
+        <div>
+          <h3><i class="sw" style="background:var(--obl)"></i>Side to side, twice a year</h3>
+          <p>The tilt's effect on timing peaks four times a year, swinging east, west, east, west. Two side-to-side cycles against one up-down cycle trace a loop at each end, crossing in the middle in mid-April and late August.</p>
+        </div>
+      </div>
+      <p>Press "Tilt only" to see this pure version: a symmetric 8 with equal loops.</p>
+    </section>
+
+    <section>
+      <h2>Why the loops are lopsided</h2>
+      <p>Earth's elliptical orbit adds a second side-to-side push that cycles once a year. Earth moves fastest at perihelion in early January, and the offset that builds up is largest a season later, in early April and early October. On its own it would turn the figure into a single tilted oval; press "Orbit only" to see it. In late October and mid-February it adds to the tilt effect, swelling the December loop. In mid-May and late July it works against the tilt effect, pinching the June loop. That's why every analemma has a fat loop from late August to mid-April and a thin one from mid-April to late August.</p>
+    </section>
+
+    <section>
+      <h2>Same 8, different height</h2>
+      <p id="a-p-height"></p>
+      <p id="a-p-dst"></p>
+    </section>
+
+    <section>
+      <h2>Sun straight overhead</h2>
+      <p id="a-p-zen"></p>
+      <p class="foot" id="a-foot"></p>
+    </section>
+  </main>
+
+  <p class="foot" style="margin-top:28px">Put two places in the link to share a comparison: <code>?a=Place&amp;b=Place</code>, with a city name, a city and region such as <code>Springfield, Illinois</code>, or <code>lat,lon,Area/Zone,Name</code>. Typed city names are looked up with the free <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> geocoder. Times come from standard solar-position approximations and your browser's time-zone rules, accurate to about a minute. Made with AI assistance. Not for navigation.</p>
+</div>
+
+<script>
+/* ===================== shared ===================== */
+const SS={views:{},C:{}};
+SS.readC=()=>{const s=getComputedStyle(document.documentElement);['bg','panel','fg','muted','rule','sky','sun','earth','ecc','obl','dec','a','b'].forEach(k=>SS.C[k]=s.getPropertyValue('--'+k).trim());SS.C.mono=s.getPropertyValue('--f-mono').trim();};
+SS.setup=c=>{const r=window.devicePixelRatio||1,w=c.clientWidth,h=c.clientHeight;c.width=w*r;c.height=h*r;const x=c.getContext('2d');x.setTransform(r,0,0,r,0,0);return{x,w,h};};
+SS.MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+SS.YR=new Date().getFullYear();
+SS.today=()=>{try{const d=new Date();const doy=Math.round((d-new Date(d.getFullYear(),0,0))/864e5);if(doy>=1&&doy<=365)return doy;}catch(e){}return 287;};
+SS.load=(k,d)=>{try{return localStorage.getItem(k)||d;}catch(e){return d;}};
+SS.save=(k,v)=>{try{localStorage.setItem(k,v);}catch(e){}};
+SS.doyOf=(m,d)=>Math.round((Date.UTC(SS.YR,m,d)-Date.UTC(SS.YR,0,0))/864e5);
+SS.dstr=n=>{const d=new Date(Date.UTC(SS.YR,0,n));return SS.MON[d.getUTCMonth()]+' '+d.getUTCDate();};
+SS.fmt=m=>{m=Math.round(m);m=((m%1440)+1440)%1440;let h=Math.floor(m/60),mm=m%60,ap=h>=12?'PM':'AM';h=h%12||12;return h+':'+String(mm).padStart(2,'0')+' '+ap;};
+SS.dur=m=>{m=Math.round(m);return Math.floor(m/60)+'h '+String(m%60).padStart(2,'0')+'m';};
+SS.esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+SS.latStr=v=>Math.abs(v).toFixed(1)+'° '+(v>=0?'N':'S');
+SS.lonStr=v=>Math.abs(v).toFixed(1)+'° '+(v>=0?'E':'W');
+SS.utcStr=m=>{const s=m<0?'−':'+',a=Math.abs(m),h=Math.floor(a/60),mm=a%60;return 'UTC'+s+h+(mm?':'+String(mm).padStart(2,'0'):'');};
+SS.hm=m=>{const a=Math.abs(Math.round(m)),h=Math.floor(a/60),mm=a%60;return (h?h+(h===1?' hour':' hours'):'')+(h&&mm?' ':'')+(mm?mm+' minutes':'')||'0 hours';};
+
+/* Built-in places: large world cities, so the page works with no lookup. */
+SS.WORLD=[
+ ['Honolulu',21.31,-157.86,'Pacific/Honolulu'],['Anchorage',61.22,-149.90,'America/Anchorage'],
+ ['Los Angeles',34.05,-118.24,'America/Los_Angeles'],['Denver',39.74,-104.99,'America/Denver'],
+ ['Chicago',41.88,-87.63,'America/Chicago'],['New York',40.71,-74.01,'America/New_York'],
+ ['Mexico City',19.43,-99.13,'America/Mexico_City'],['Bogotá',4.71,-74.07,'America/Bogota'],
+ ['São Paulo',-23.55,-46.63,'America/Sao_Paulo'],['Buenos Aires',-34.60,-58.38,'America/Argentina/Buenos_Aires'],
+ ['Reykjavík',64.15,-21.94,'Atlantic/Reykjavik'],['London',51.51,-0.13,'Europe/London'],
+ ['Paris',48.86,2.35,'Europe/Paris'],['Cairo',30.04,31.24,'Africa/Cairo'],
+ ['Nairobi',-1.29,36.82,'Africa/Nairobi'],['Moscow',55.76,37.62,'Europe/Moscow'],
+ ['Dubai',25.20,55.27,'Asia/Dubai'],['Mumbai',19.08,72.88,'Asia/Kolkata'],
+ ['Singapore',1.35,103.82,'Asia/Singapore'],['Beijing',39.90,116.41,'Asia/Shanghai'],
+ ['Tokyo',35.68,139.69,'Asia/Tokyo'],['Sydney',-33.87,151.21,'Australia/Sydney'],
+ ['Auckland',-36.85,174.76,'Pacific/Auckland']];
+SS.DEFAULT=['Honolulu','London'];
+
+/* Time zones: UTC offset in minutes at an instant, from the browser's own zone rules. */
+const fmtCache={};
+function zoneFmt(tz){return fmtCache[tz]||(fmtCache[tz]=new Intl.DateTimeFormat('en-US',{timeZone:tz,hourCycle:'h23',year:'numeric',month:'numeric',day:'numeric',hour:'numeric',minute:'numeric',second:'numeric'}));}
+function offAt(tz,ms){const p={};zoneFmt(tz).formatToParts(ms).forEach(x=>p[x.type]=x.value);return Math.round((Date.UTC(+p.year,+p.month-1,+p.day,+p.hour%24,+p.minute,+p.second)-ms)/60000);}
+function abbrAt(tz,ms){try{const p=new Intl.DateTimeFormat('en-US',{timeZone:tz,timeZoneName:'short'}).formatToParts(ms).find(x=>x.type==='timeZoneName');return p?p.value:'';}catch(e){return '';}}
+function validTz(tz){try{zoneFmt(tz);return true;}catch(e){return false;}}
+
+/* A place: label, lat, lon, tz, plus per-day UTC offsets and standard-time facts. */
+SS.place=(label,lat,lon,tz,note)=>{
+  const p={label,lat,lon,tz,note:note||''};
+  p.off=[];for(let n=1;n<=365;n++)p.off.push(offAt(tz,Date.UTC(SS.YR,0,n,12)-lon/15*36e5));
+  p.std=Math.min(...p.off);p.mer=p.std/4;
+  p.isDst=n=>p.off[n-1]>p.std;
+  p.stdDay=p.off.indexOf(p.std)+1;
+  p.abbr=n=>abbrAt(tz,Date.UTC(SS.YR,0,n,12)-lon/15*36e5)||SS.utcStr(p.off[n-1]);
+  p.stdAbbr=p.abbr(p.stdDay);
+  let on=0,off=0;for(let n=1;n<=365;n++){const a=p.isDst(n),b=p.isDst(n===1?365:n-1);if(a&&!b)on=n;if(!a&&b)off=n;}
+  p.dst=on?{on,off}:null;p.dstAmt=Math.max(...p.off)-p.std;
+  return p;};
+
+/* Resolve what someone typed: lat,lon,Area/Zone; a built-in city; or a geocoder lookup. */
+const norm=s=>s.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().trim();
+SS.resolve=async spec=>{
+  spec=(spec||'').trim();if(!spec)throw new Error('Type a place.');
+  const m=spec.match(/^(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*,\s*([A-Za-z_]+(?:\/[A-Za-z0-9_+\-]+)+|UTC)\s*(?:,\s*([^,]{1,40}))?\s*$/);
+  if(m){const lat=+m[1],lon=+m[2],tz=m[3];
+    if(Math.abs(lat)>66||Math.abs(lon)>180)throw new Error(`${spec}: latitude must be within 66° of the equator and longitude within 180°.`);
+    if(!validTz(tz))throw new Error(`${tz} isn't a time zone this browser knows.`);
+    const coords=SS.latStr(lat)+', '+SS.lonStr(lon);
+    if(m[4]&&m[4].trim())return SS.place(m[4].trim(),lat,lon,tz,coords+' · '+tz);
+    const p=SS.place(coords,lat,lon,tz,tz);p.coord=true;return p;}
+  const w=SS.WORLD.find(c=>norm(c[0])===norm(spec));
+  if(w)return SS.place(w[0],w[1],w[2],w[3],w[3]);
+  const [name,...rest]=spec.split(',');const region=norm(rest.join(','));
+  let data;
+  try{const r=await fetch('https://geocoding-api.open-meteo.com/v1/search?count=10&language=en&format=json&name='+encodeURIComponent(name.trim()));if(!r.ok)throw 0;data=await r.json();}
+  catch(e){throw new Error(`Couldn't look up “${spec}” here. Pick a city from the list, or type lat,lon,Area/Zone,Name.`);}
+  let res=(data.results||[]).filter(x=>x.timezone&&Math.abs(x.latitude)<=66);
+  if(region)res=res.filter(x=>[x.admin1,x.admin2,x.country,x.country_code].some(v=>v&&norm(v).startsWith(region)));
+  if(!res.length)throw new Error(`No place called “${spec}” found.`);
+  const x=res[0];
+  return SS.place(x.name,x.latitude,x.longitude,x.timezone,[x.admin1,x.country].filter(Boolean).join(', ')+' · '+x.timezone);};
+
+/* ===================== Sunrise and sunset ===================== */
+(()=>{
+const D2R=Math.PI/180,EV=0.2,TILT=23.44*D2R,MON=SS.MON,C=SS.C,fmt=SS.fmt,dur=SS.dur,dstr=SS.dstr,doyOf=SS.doyOf,esc=SS.esc;
+const $=id=>document.getElementById(id);
+function eot(n){const B=2*Math.PI*(n-81)/365;const obl=9.87*Math.sin(2*B),ecc=-7.53*Math.cos(B)-1.5*Math.sin(B);return{obl,ecc,eot:obl+ecc};}
+function sun(n,c){const g=2*Math.PI/365*(n-1);const dec=0.006918-0.399912*Math.cos(g)+0.070257*Math.sin(g)-0.006758*Math.cos(2*g)+0.000907*Math.sin(2*g)-0.002697*Math.cos(3*g)+0.00148*Math.sin(3*g);const e=eot(n).eot,noon=720+4*(c.mer-c.lon)-e;const cH=Math.max(-1,Math.min(1,(Math.sin(-0.833*D2R)-Math.sin(c.lat*D2R)*Math.sin(dec))/(Math.cos(c.lat*D2R)*Math.cos(dec))));const H=Math.acos(cH)/D2R;return{noon,rise:noon-4*H,set:noon+4*H,len:8*H};}
+const E=[];for(let i=1;i<=365;i++)E.push(eot(i));
+let mode=SS.load('ss-mode','clock');if(mode!=='clock'&&mode!=='std')mode='clock';
+let A,B,CITIES,n=SS.today(),yaw=-0.5,pitch=0.5,timer=null;
+const off=(c,d)=>mode==='clock'?c.off[d-1]-c.std:0;
+const val=(c,i,k)=>c.S[i][k]+(k==='len'?0:off(c,i+1));
+const zone=(c,d)=>mode==='clock'?c.abbr(d):c.stdAbbr;
+function extremes(c,useMode){const keep=mode;mode=useMode;const ix=(k,cmp)=>{let b=0;for(let i=1;i<365;i++)if(cmp(val(c,i,k),val(c,b,k)))b=i;return b+1;};
+  const r={lr:ix('rise',(a,b)=>a>b),er:ix('rise',(a,b)=>a<b),es:ix('set',(a,b)=>a<b),ls:ix('set',(a,b)=>a>b),sd:ix('len',(a,b)=>a<b),ld:ix('len',(a,b)=>a>b)};mode=keep;return r;}
+function prep(p,id){const c=Object.assign({},p,{id});c.S=[];for(let i=1;i<=365;i++)c.S.push(sun(i,c));return c;}
+function build(){A=prep(SS.A,'a');B=prep(SS.B,'b');CITIES=[A,B];CITIES.forEach(c=>c.ex=extremes(c,mode));prose();table();}
+
+function prose(){
+  const a=A,b=B,L=c=>esc(c.label);
+  const lab=c=>c.coord?c.label:c.label+' '+SS.latStr(c.lat);
+  $('c-eyebrow').textContent=`${lab(a)} · ${a.stdAbbr} (${SS.utcStr(a.std)})  /  ${lab(b)} · ${b.stdAbbr} (${SS.utcStr(b.std)})`;
+  $('c-lede').textContent=`Sunrise, sunset and day length in ${a.label} and ${b.label} through the year, each on its own clock. Scrub through the year, or put any two places in the boxes above.`;
+  ['c-lg-a','c-th-a'].forEach(id=>$(id).textContent=a.label);['c-lg-b','c-th-b'].forEach(id=>$(id).textContent=b.label);
+  const side=c=>{const d=c.lon-c.mer;return Math.abs(d)<0.05?'right on':Math.abs(d).toFixed(1)+'° '+(d<0?'west':'east')+' of';};
+  const merStr=c=>c.mer===0?'0°':Math.abs(c.mer)+'° '+(c.mer<0?'W':'E');
+  const avgNoon=c=>720+4*(c.mer-c.lon);
+  const dn=avgNoon(b)-avgNoon(a);
+  let tail;
+  if(Math.abs(dn)<=4)tail=` Their daylight sits in nearly the same place on each clock.`;
+  else tail=` So ${b.label}'s daylight is centered ${Math.round(Math.abs(dn))} minutes ${dn<0?'earlier':'later'} on its clock than ${a.label}'s.`;
+  $('c-p-offset').textContent=`${a.label} is ${side(a)} the ${merStr(a)} meridian that sets its standard time (${SS.utcStr(a.std)}). ${b.label} is ${side(b)} the ${merStr(b)} meridian for ${SS.utcStr(b.std)}. Each degree is four minutes, so on standard time solar noon averages ${fmt(avgNoon(a))} in ${a.label} and ${fmt(avgNoon(b))} in ${b.label}.`+tail;
+  const [far,near]=Math.abs(b.lat)>=Math.abs(a.lat)?[b,a]:[a,b];
+  const sh=c=>c.S[c.ex.sd-1].len,lg=c=>c.S[c.ex.ld-1].len;
+  const opp=a.lat*b.lat<0?` They're on opposite sides of the equator, so one's longest day falls near the other's shortest.`:'';
+  $('c-p-lat').textContent=`${far.label} is ${(Math.abs(far.lat)-Math.abs(near.lat)).toFixed(1)}° farther from the equator. Its shortest day is ${dur(sh(far))}, against ${dur(sh(near))} in ${near.label}, and its longest is ${dur(lg(far))}, against ${dur(lg(near))}. Day length there swings ${dur(lg(far)-sh(far))} through the year; in ${near.label} it swings ${dur(lg(near)-sh(near))}.`+opp;
+  const dd=c=>`from ${dstr(c.dst.on)} to ${dstr(c.dst.off)}`;
+  let t;
+  if(!a.dst&&!b.dst)t=`Neither place uses daylight saving in ${SS.YR}, so clock time and standard time match all year, and the gap between the two clocks never changes.`;
+  else if(a.dst&&b.dst)t=`Both places set their clocks ahead: ${a.label} ${dd(a)}, and ${b.label} ${dd(b)}, ${SS.YR}. The shaded bands on the charts mark those months; switch to standard time to see the curves without the jumps.`;
+  else{const y=a.dst?a:b,z=a.dst?b:a;t=`${y.label} sets its clocks ahead ${SS.hm(y.dstAmt)} ${dd(y)}, ${SS.YR}; ${z.label} stays on standard time all year. So ${y.label}'s sunrises and sunsets in those months come later on the clock, and the gap between the two clocks changes. The shaded band on the charts marks those months; switch to standard time to see the curves without the jump.`;}
+  $('c-p-dst').textContent=t;
+  const s=[a,b].map(c=>extremes(c,'std')),k=[a,b].map(c=>extremes(c,'clock'));
+  let same=`The orbit effects come from Earth's path around the Sun, so they're the same everywhere. On standard time, the latest sunrise is ${dstr(s[0].lr)} in ${a.label} and ${dstr(s[1].lr)} in ${b.label}, and the earliest sunset is ${dstr(s[0].es)} and ${dstr(s[1].es)}. The farther a place is from the equator, the faster its day length changes near the solstice, so its extremes sit closer to it.`;
+  [a,b].forEach((c,i)=>{if(k[i].lr!==s[i].lr)same+=` On the clock, daylight saving moves ${c.label}'s latest sunrise to ${dstr(k[i].lr)}.`;});
+  $('c-p-same').textContent=same;
+  $('c-foot').textContent=(mode==='clock'?`Times are on each place's clock, with its daylight saving rules.`:`Times are on each place's standard time all year.`)+` Time zones: ${a.label} ${a.tz}, ${b.label} ${b.tz}. Computed from standard solar-position approximations, accurate to about a minute. Dates are for ${SS.YR}.`;
+}
+
+function table(){
+  const cell=(d,v,c)=>`<td class="n">${v}${c?' <span class="zone">'+esc(zone(c,d))+'</span>':''}<br><span class="sub">${dstr(d)}</span></td>`;
+  const rows=[
+    ['Shortest day',c=>[c.ex.sd,dur(c.S[c.ex.sd-1].len)]],
+    ['Earliest sunset',c=>[c.ex.es,fmt(val(c,c.ex.es-1,'set')),1]],
+    ['Latest sunrise',c=>[c.ex.lr,fmt(val(c,c.ex.lr-1,'rise')),1]],
+    ['Earliest sunrise',c=>[c.ex.er,fmt(val(c,c.ex.er-1,'rise')),1]],
+    ['Longest day',c=>[c.ex.ld,dur(c.S[c.ex.ld-1].len)]],
+    ['Latest sunset',c=>[c.ex.ls,fmt(val(c,c.ex.ls-1,'set')),1]],
+    ['Morning swing (latest − earliest sunrise)',c=>[null,dur(val(c,c.ex.lr-1,'rise')-val(c,c.ex.er-1,'rise'))]],
+    ['Evening swing (latest − earliest sunset)',c=>[null,dur(val(c,c.ex.ls-1,'set')-val(c,c.ex.es-1,'set'))]]
+  ];
+  $('c-ext').innerHTML=rows.map(([lab,f])=>`<tr><td>${lab}</td>${CITIES.map(c=>{const v=f(c);return v[0]?cell(v[0],v[1],v[2]?c:null):`<td class="n">${v[1]}</td>`;}).join('')}</tr>`).join('');
+}
+
+const eAng=d=>{const M=2*Math.PI*(d-3)/365.25;return 104*D2R+M+2*EV*Math.sin(M)+1.25*EV*EV*Math.sin(2*M);};
+const rad=a=>(1-EV*EV)/(1+EV*Math.cos(a-104*D2R));
+function drawOrb(){const c=$('c-orb');const{x,w,h}=SS.setup(c);const sc=Math.min(w*0.34,130),cx=w/2,cy=h/2+12;
+const P=(X,Y,Z)=>{const x1=X*Math.cos(yaw)-Y*Math.sin(yaw),y1=X*Math.sin(yaw)+Y*Math.cos(yaw);return[cx+sc*x1,cy-sc*(Z*Math.cos(pitch)+y1*Math.sin(pitch)),y1*Math.cos(pitch)-Z*Math.sin(pitch)];};
+x.font='12px '+C.mono;
+x.strokeStyle=C.rule;x.lineWidth=1.5;x.beginPath();for(let i=0;i<=200;i++){const a=i/200*2*Math.PI,r=rad(a),p=P(r*Math.cos(a),r*Math.sin(a),0);i?x.lineTo(p[0],p[1]):x.moveTo(p[0],p[1]);}x.stroke();x.lineWidth=1;
+const ap=104*D2R,pe=P(rad(ap)*Math.cos(ap),rad(ap)*Math.sin(ap),0),ae=P(rad(ap+Math.PI)*Math.cos(ap+Math.PI),rad(ap+Math.PI)*Math.sin(ap+Math.PI),0);
+x.setLineDash([3,4]);x.strokeStyle=C.ecc;x.beginPath();x.moveTo(pe[0],pe[1]);x.lineTo(ae[0],ae[1]);x.stroke();x.setLineDash([]);
+const sp=P(0,0,0);
+[[3,'Perihelion · Jan 3',C.ecc],[185,'Aphelion · Jul 4',C.ecc],[172,'Jun solstice',C.obl,-1],[355,'Dec solstice',C.obl,-1]].forEach(([d,l,col,s=1])=>{const a=eAng(d),r=rad(a),p=P(r*Math.cos(a),r*Math.sin(a),0);x.fillStyle=col;x.beginPath();x.arc(p[0],p[1],3.5,0,7);x.fill();const dx=p[0]-sp[0],dy=p[1]-sp[1],L=Math.hypot(dx,dy)||1;x.fillStyle=C.muted;x.textAlign=dx*s>0?'left':'right';x.fillText(l,p[0]+s*dx/L*12,p[1]+s*dy/L*14+4);});
+const a=eAng(n),r=rad(a),Ep=[r*Math.cos(a),r*Math.sin(a),0],ep=P(...Ep);
+const dSun=()=>{x.fillStyle=C.sun;x.beginPath();x.arc(sp[0],sp[1],14,0,7);x.fill();};
+const dEarth=()=>{x.strokeStyle=C.rule;x.beginPath();x.moveTo(sp[0],sp[1]);x.lineTo(ep[0],ep[1]);x.stroke();
+const ax=[0,Math.sin(TILT),Math.cos(TILT)],L=0.22,t=P(Ep[0]+ax[0]*L,Ep[1]+ax[1]*L,Ep[2]+ax[2]*L),b=P(Ep[0]-ax[0]*L,Ep[1]-ax[1]*L,Ep[2]-ax[2]*L);
+x.fillStyle=C.earth;x.beginPath();x.arc(ep[0],ep[1],9,0,7);x.fill();
+x.strokeStyle=C.fg;x.lineWidth=2;x.beginPath();x.moveTo(b[0],b[1]);x.lineTo(t[0],t[1]);x.stroke();x.lineWidth=1;x.fillStyle=C.fg;x.textAlign='center';x.fillText('N',t[0]+(t[0]-ep[0])*0.3,t[1]+(t[1]-ep[1])*0.3);};
+if(ep[2]>0){dEarth();dSun();}else{dSun();dEarth();}
+x.fillStyle=C.muted;x.textAlign='left';x.fillText('Axis tilt 23.4°, fixed in space',4,14);}
+
+function range(k){let lo=1e9,hi=-1e9;CITIES.forEach(c=>{for(let i=0;i<365;i++){const v=val(c,i,k);lo=Math.min(lo,v);hi=Math.max(hi,v);}});return[lo,hi];}
+function ticksFor(lo,hi,step){const t=[];for(let v=Math.ceil(lo/step)*step;v<=hi;v+=step)t.push(v);return t;}
+function drawCh(){const c=$('c-ch');const{x,w,h}=SS.setup(c);const L=66,R=8,W=w-L-R;x.font='11px '+C.mono;const X=d=>L+(d-1)/364*W;
+const axes=(y0,ph,lo,hi,title,ticks,tf,inv)=>{const Y=v=>inv?y0+(v-lo)/(hi-lo)*ph:y0+ph-(v-lo)/(hi-lo)*ph;x.strokeStyle=C.rule;x.fillStyle=C.muted;x.textAlign='right';ticks.forEach(t=>{x.beginPath();x.moveTo(L,Y(t));x.lineTo(L+W,Y(t));x.stroke();x.fillText(tf(t),L-6,Y(t)+4);});x.textAlign='left';x.fillStyle=C.fg;x.font='500 12px '+C.mono;x.fillText(title,L,y0-8);x.font='11px '+C.mono;return Y;};
+const line=(c,k,Y,col,lw,arr)=>{x.strokeStyle=col;x.lineWidth=lw;x.beginPath();let prev=null;for(let i=0;i<365;i++){const v=arr?arr[i][k]:val(c,i,k),p=[X(i+1),Y(v)];(prev===null||Math.abs(v-prev)>20)?x.moveTo(...p):x.lineTo(...p);prev=v;}x.stroke();x.lineWidth=1;const v=arr?arr[n-1][k]:val(c,n-1,k);x.fillStyle=col;x.beginPath();x.arc(X(n),Y(v),4,0,7);x.fill();};
+const ring=(d,v,Y,col)=>{x.strokeStyle=col;x.beginPath();x.arc(X(d),Y(v),6,0,7);x.stroke();};
+const bands=(y0,ph)=>{if(mode!=='clock')return;let labeled=false;CITIES.forEach(ci=>{if(!ci.dst)return;x.fillStyle=C[ci.id];x.globalAlpha=.08;
+  for(let d=1;d<=365;d++){if(ci.isDst(d))x.fillRect(X(d)-W/728,y0,W/364+0.5,ph);}x.globalAlpha=1;
+  if(!labeled){const mid=ci.dst.on<ci.dst.off?(ci.dst.on+ci.dst.off)/2:(ci.dst.off>60?ci.dst.off/2:(ci.dst.on+365)/2);x.fillStyle=C.muted;x.textAlign='center';x.fillText('daylight saving',X(mid),y0+ph-6);labeled=true;}});};
+const gap=34,ph=(h-30-28-3*gap)/4;let y=20;
+const Ye=axes(y,ph,-17,17,'Sundial ahead of clock (min) · same everywhere',[-15,0,15],t=>(t>0?'+':'')+t);
+line(null,'ecc',Ye,C.ecc,1.5,E);line(null,'obl',Ye,C.obl,1.5,E);line(null,'eot',Ye,C.fg,2.5,E);
+const timeAxis=(k,title)=>{y+=ph+gap;let[lo,hi]=range(k);lo-=8;hi+=8;const span=hi-lo,step=span>420?120:span>200?60:30;bands(y,ph);const Yk=axes(y,ph,lo,hi,title,ticksFor(lo+4,hi-4,step),fmt,true);
+  CITIES.forEach(ci=>{line(ci,k,Yk,C[ci.id],2);const e=k==='rise'?[ci.ex.lr,ci.ex.er]:[ci.ex.es,ci.ex.ls];e.forEach(d=>ring(d,val(ci,d-1,k),Yk,C[ci.id]));});};
+timeAxis('rise',mode==='clock'?'Sunrise · clock time':'Sunrise · standard time');
+timeAxis('set',mode==='clock'?'Sunset · clock time':'Sunset · standard time');
+y+=ph+gap;let[lo,hi]=range('len');lo=Math.floor((lo-15)/60)*60;hi=Math.ceil((hi+15)/60)*60;const Yl=axes(y,ph,lo,hi,'Day length',ticksFor(lo,hi,hi-lo>600?240:120),t=>(t/60)+'h');
+CITIES.forEach(ci=>line(ci,'len',Yl,C[ci.id],2));
+[172,355].forEach(d=>{x.strokeStyle=C.muted;x.setLineDash([2,4]);x.beginPath();x.moveTo(X(d),20);x.lineTo(X(d),h-28);x.stroke();x.setLineDash([]);});
+x.strokeStyle=C.fg;x.globalAlpha=.35;x.beginPath();x.moveTo(X(n),20);x.lineTo(X(n),h-28);x.stroke();x.globalAlpha=1;
+x.fillStyle=C.muted;x.textAlign='center';MON.forEach((m,i)=>x.fillText(m,X(doyOf(i,15)),h-10));}
+
+function upd(){$('c-dlab').textContent=dstr(n);
+$('c-today').innerHTML=CITIES.map(c=>{const z=zone(c,n),i=n-1;return `<tr><td><span class="city"><i class="dot" style="background:var(--${c.id})"></i>${esc(c.label)} <span class="zone">${esc(z)}</span></span></td><td class="n">${fmt(val(c,i,'rise'))}</td><td class="n">${fmt(val(c,i,'set'))}</td><td class="n">${fmt(val(c,i,'noon'))}</td><td class="n">${dur(c.S[i].len)}</td></tr>`;}).join('');
+const diff=B.off[n-1]-A.off[n-1],ps=B.S[n-1];
+const inA=m=>{const t=m-B.std+A.off[n-1];return fmt(t)+(t<0?' the day before':t>=1440?' the next day':'');};
+const rel=diff===0?`show the same time as ${esc(A.label)}'s`:`are <strong>${SS.hm(diff)} ${diff>0?'ahead of':'behind'}</strong> ${esc(A.label)}'s`;
+$('c-gap').innerHTML=`On ${dstr(n)}, clocks in ${esc(B.label)} ${rel}. Sunrise in ${esc(B.label)} is <strong>${inA(ps.rise)}</strong> in ${esc(A.label)}, and sunset there is <strong>${inA(ps.set)}</strong>.`;
+drawOrb();drawCh();}
+
+document.querySelectorAll('[data-clock]').forEach(b=>{b.setAttribute('aria-pressed',b.dataset.clock===mode);b.addEventListener('click',()=>{mode=b.dataset.clock;SS.save('ss-mode',mode);document.querySelectorAll('[data-clock]').forEach(o=>o.setAttribute('aria-pressed',o===b));build();upd();});});
+const sl=$('c-day');sl.value=n;sl.addEventListener('input',e=>{n=+e.target.value;upd();});
+const pb=$('c-play');
+const stop=()=>{if(timer){clearInterval(timer);timer=null;pb.textContent='Play';}};
+pb.addEventListener('click',()=>{if(timer)stop();else{timer=setInterval(()=>{n=n%365+1;sl.value=n;upd();},45);pb.textContent='Pause';}});
+const oc=$('c-orb');let drag=null;
+oc.addEventListener('pointerdown',e=>{drag=[e.clientX,e.clientY,yaw,pitch];oc.setPointerCapture(e.pointerId);oc.style.cursor='grabbing';});
+oc.addEventListener('pointermove',e=>{if(!drag)return;yaw=drag[2]+(e.clientX-drag[0])*0.01;pitch=Math.max(0.08,Math.min(1.4,drag[3]+(e.clientY-drag[1])*0.01));drawOrb();});
+oc.addEventListener('pointerup',()=>{drag=null;oc.style.cursor='grab';});
+SS.views.compare={draw:upd,stop,place:build};
+})();
+
+/* ===================== Analemma ===================== */
+(()=>{
+const D2R=Math.PI/180,MON=SS.MON,C=SS.C,fmt=SS.fmt,dstr=SS.dstr,doyOf=SS.doyOf,esc=SS.esc;
+const $=id=>document.getElementById(id);
+let n=SS.today(),mode='both',stretch=3,timer=null,A,B;
+function prep(p,id){const c=Object.assign({},p,{id});c.meanNoon=720+4*(c.mer-c.lon);c.shot=Math.round(c.meanNoon);const utcNoon=(c.meanNoon-c.std)/60;c.sg=c.lat>=0?1:-1;
+  c.S=[];for(let i=1;i<=365;i++){const g=2*Math.PI/365*(i-1+(utcNoon-12)/24);const dec=(0.006918-0.399912*Math.cos(g)+0.070257*Math.sin(g)-0.006758*Math.cos(2*g)+0.000907*Math.sin(2*g)-0.002697*Math.cos(3*g)+0.00148*Math.sin(3*g))/D2R;const Bq=2*Math.PI*(i-81)/365;const obl=9.87*Math.sin(2*Bq),ecc=-7.53*Math.cos(Bq)-1.5*Math.sin(Bq);c.S.push({dec,obl,ecc,both:obl+ecc});}
+  c.zen=[];for(let i=1;i<365;i++){const a=c.S[i-1].dec-c.lat,b=c.S[i].dec-c.lat;if(a*b<=0&&a!==b)c.zen.push(Math.abs(a)<Math.abs(b)?i:i+1);}
+  return c;}
+/* altitude above the horizon on the equator side; above 90 means past overhead */
+const alt=(c,s)=>90-Math.abs(c.lat)+c.sg*s.dec;
+const xDeg=(s,k)=>s[k]*0.25*Math.cos(s.dec*D2R);
+const towards=c=>c.sg>0?'south':'north',away=c=>c.sg>0?'north':'south';
+function drawSky(id,c){const cv=$(id);const{x,w,h}=SS.setup(cv);
+x.fillStyle=C.sky;x.fillRect(0,0,w,h);
+const lo=Math.round(90-Math.abs(c.lat)-26.84),hi=Math.round(90-Math.abs(c.lat)+26.84),pt=30,pb=26,ph=h-pt-pb,ppd=ph/(hi-lo),cx=w/2+10;
+const Y=a=>pt+(hi-a)*ppd,X=d=>cx+c.sg*d*ppd*stretch;
+x.font='11px '+C.mono;x.textAlign='left';
+for(let a=Math.ceil((lo+3)/10)*10;a<=Math.min(90,hi);a+=10){x.strokeStyle=C.rule;x.beginPath();x.moveTo(0,Y(a));x.lineTo(w,Y(a));x.stroke();x.fillStyle=C.muted;x.fillText(a===90?'90° overhead':a+'°',6,Y(a)-4);}
+if(hi>92){x.fillStyle=C.muted;x.fillText(away(c)+' side',6,Y(95)+4);}
+x.setLineDash([2,4]);x.strokeStyle=C.muted;x.beginPath();x.moveTo(X(0),pt);x.lineTo(X(0),h-pb);x.stroke();x.setLineDash([]);
+x.fillStyle=C.muted;x.textAlign='center';x.fillText('meridian · facing '+towards(c),X(0),h-pb+16);x.textAlign='left';x.fillText(c.sg>0?'← east':'← west',6,h-8);x.textAlign='right';x.fillText(c.sg>0?'west →':'east →',w-6,h-8);
+const path=(k,col,lw,alpha)=>{x.globalAlpha=alpha;x.strokeStyle=col;x.lineWidth=lw;x.beginPath();c.S.forEach((s,i)=>{const p=[X(xDeg(s,k)),Y(alt(c,s))];i?x.lineTo(...p):x.moveTo(...p);});x.closePath();x.stroke();x.globalAlpha=1;x.lineWidth=1;};
+const col={both:C.fg,obl:C.obl,ecc:C.ecc}[mode];
+if(mode!=='both')path('both',C.fg,1.5,.18);
+path(mode,col,2.5,1);
+for(let m=0;m<12;m++){const d=doyOf(m,1),s=c.S[d-1],px=X(xDeg(s,mode)),py=Y(alt(c,s));x.fillStyle=col;x.beginPath();x.arc(px,py,3,0,7);x.fill();const right=px>=X(0);x.fillStyle=C.muted;x.textAlign=right?'left':'right';x.fillText(MON[m]+' 1',px+(right?7:-7),py+4);}
+c.zen.forEach(d=>{const s=c.S[d-1],px=X(xDeg(s,mode)),py=Y(alt(c,s));x.strokeStyle=C.sun;x.lineWidth=1.5;x.beginPath();x.arc(px,py,6,0,7);x.stroke();x.lineWidth=1;});
+const s=c.S[n-1],px=X(xDeg(s,mode)),py=Y(alt(c,s));x.fillStyle=C.sun;x.beginPath();x.arc(px,py,9,0,7);x.fill();
+x.fillStyle=C[c.id];x.beginPath();x.arc(11,13,5,0,7);x.fill();
+x.font='500 12px '+C.mono;x.fillStyle=C.fg;x.textAlign='left';const title=c.label+' · '+fmt(c.shot)+' '+c.stdAbbr;x.fillText(title.length>34?title.slice(0,33)+'…':title,22,17);
+x.font='11px '+C.mono;x.fillStyle=C.muted;x.textAlign='right';if(w>300)x.fillText(stretch===1?'true':'width ×'+stretch,w-6,17);}
+function strip(id,title,series,lo,hi,ticks,tf){const c=$(id);const{x,w,h}=SS.setup(c);const L=40,R=6,T=22,Bm=22,W=w-L-R,H=h-T-Bm;const X=d=>L+(d-1)/364*W,Y=v=>T+H-(v-lo)/(hi-lo)*H;const S=A.S;
+x.font='500 12px '+C.mono;x.fillStyle=C.fg;x.textAlign='left';x.fillText(title,L,14);x.font='11px '+C.mono;
+ticks.forEach(t=>{x.strokeStyle=C.rule;x.beginPath();x.moveTo(L,Y(t));x.lineTo(L+W,Y(t));x.stroke();x.fillStyle=C.muted;x.textAlign='right';x.fillText(tf(t),L-5,Y(t)+4);});
+series.forEach(([k,col,lw,a])=>{x.globalAlpha=a;x.strokeStyle=col;x.lineWidth=lw;x.beginPath();S.forEach((s,i)=>{const p=[X(i+1),Y(s[k])];i?x.lineTo(...p):x.moveTo(...p);});x.stroke();x.lineWidth=1;x.globalAlpha=1;if(a>.5){x.fillStyle=col;x.beginPath();x.arc(X(n),Y(S[n-1][k]),3.5,0,7);x.fill();}});
+x.strokeStyle=C.muted;x.globalAlpha=.5;x.beginPath();x.moveTo(X(n),T);x.lineTo(X(n),T+H);x.stroke();x.globalAlpha=1;
+x.fillStyle=C.muted;x.textAlign='center';[0,3,6,9].forEach(m=>x.fillText(MON[m],X(doyOf(m,15)),h-6));return{X,Y,x};}
+function prose(){
+  const a=A,b=B,[far,near]=Math.abs(b.lat)>=Math.abs(a.lat)?[b,a]:[a,b],d=(Math.abs(far.lat)-Math.abs(near.lat)).toFixed(1);
+  const lab=c=>c.coord?c.label:c.label+' '+SS.latStr(c.lat);
+  $('a-eyebrow').textContent=`${lab(a)} · ${fmt(a.shot)} ${a.stdAbbr}  /  ${lab(b)} · ${fmt(b.shot)} ${b.stdAbbr} · sky at average solar noon every day`;
+  $('a-h1').textContent=`The figure 8 the Sun draws over ${a.label} and ${b.label}`;
+  $('a-lede').textContent=`Photograph the Sun from the same spot at the same clock time every day for a year, and the dots trace a lopsided figure 8 called the analemma. Its height comes from the seasons; its width comes from the same two orbital effects that shift sunrise and sunset. Here it's drawn for ${a.label} and ${b.label}, each at its own average solar noon on standard time.`;
+  let ht=`The shape comes from Earth's orbit, so it's the same 8 everywhere. Latitude only moves it up or down. ${far.label} is ${d}° farther from the equator, so its figure sits ${d}° lower in the sky.`;
+  [a,b].forEach(c=>{if(Math.abs(c.lat)>23.44){const al=c.S.map(s=>alt(c,s));ht+=` In ${c.label} the noon Sun peaks at ${Math.max(...al).toFixed(0)}° and drops to ${Math.min(...al).toFixed(0)}°, and it's never overhead.`;}});
+  if(a.lat*b.lat<0)ht+=` South of the equator you face north to see it, so the figure appears upside down, with the June loop at the bottom.`;
+  $('a-p-height').textContent=ht;
+  const ds=[a,b].filter(c=>c.dst);
+  $('a-p-dst').textContent=ds.length?`Daylight saving changes the clock, not the sky. `+ds.map(c=>`From ${dstr(c.dst.on)} to ${dstr(c.dst.off)}, ${c.label}'s ${fmt(c.shot)} photo time reads ${fmt(c.shot+c.dstAmt)} on the clock.`).join(' ')+` If you kept shooting at the same clock time through those months, that part of the figure would jump about 15° of the Sun's daily arc to the east for each hour.`:`Neither place uses daylight saving, so the photo time reads the same on the clock all year.`;
+  const tz=[a,b].filter(c=>c.zen.length);
+  $('a-p-zen').innerHTML=tz.length?tz.map(c=>`${esc(c.label)} sits between the tropics, so part of its analemma passes straight overhead. Around <strong>${c.zen.map(dstr).join(' and ')}</strong> (circled on its figure), the noon Sun is at the zenith and upright objects cast almost no shadow.`).join(' ')+` (In Hawaiʻi this is called Lāhainā Noon.)`+(tz.length<2?` ${esc((tz[0]===a?b:a).label)} is outside the tropics, so its Sun never gets there.`:''):`Neither place is between the tropics, so the noon Sun never gets straight overhead there. Only places between 23.4° N and 23.4° S see it, twice a year (once, right on a tropic).`;
+  $('a-foot').textContent=`Computed from standard solar-position approximations; positions are accurate to a fraction of a degree. Each figure uses that place's average solar noon on standard time (${fmt(a.shot)} ${a.stdAbbr} in ${a.label}, ${fmt(b.shot)} ${b.stdAbbr} in ${b.label}), so the 8 is centered on the meridian. Views face the equator and look up; altitudes above 90° are past overhead. Dates are for ${SS.YR}.`;
+}
+function build(){A=prep(SS.A,'a');B=prep(SS.B,'b');prose();}
+function readLine(c){const s=c.S[n-1],xd=xDeg(s,'both'),a=alt(c,s),dst=c.isDst(n);
+  return `<div><strong>${esc(c.label)}</strong> at ${fmt(c.shot)} ${esc(c.stdAbbr)}${dst?' ('+fmt(c.shot+c.dstAmt)+' '+esc(c.abbr(n))+' on the clock)':''}: Sun is <strong>${Math.abs(xd).toFixed(1)}° ${xd>=0?'west':'east'}</strong> of the meridian, <strong>${a<=90?a.toFixed(1)+'° above the '+towards(c)+'ern horizon':(180-a).toFixed(1)+'° above the '+away(c)+'ern horizon'}</strong>. True solar noon is <strong>${fmt(c.meanNoon-s.both)}</strong>.</div>`;}
+function draw(){
+const d=strip('a-dec','Up–down · declination',[['dec',C.dec,2,1]],-26,26,[-23.4,0,23.4],t=>(t>0?'+':'')+Math.round(t)+'°');
+[A,B].forEach(c=>{if(Math.abs(c.lat)>25)return;const x=d.x;x.setLineDash([3,3]);x.strokeStyle=C[c.id];x.beginPath();x.moveTo(40,d.Y(c.lat));x.lineTo(d.X(365),d.Y(c.lat));x.stroke();x.setLineDash([]);x.fillStyle=C[c.id];x.font='11px '+C.mono;x.textAlign='right';x.fillText('overhead in '+c.label,d.X(365),d.Y(c.lat)-4);});
+const on=k=>mode==='both'||mode===k?1:.25;
+strip('a-eot','Side to side · minutes Sun is ahead of clock',[['ecc',C.ecc,1.5,on('ecc')],['obl',C.obl,1.5,on('obl')],['both',C.fg,2.5,mode==='both'?1:.2]],-17,17,[-15,0,15],t=>(t>0?'+':'')+t);
+drawSky('a-sky-a',A);drawSky('a-sky-b',B);
+$('a-dlab').textContent=dstr(n);
+$('a-read').innerHTML=`<div>On <strong>${dstr(n)}</strong>:</div>`+readLine(A)+readLine(B);}
+const sl=$('a-day');sl.value=n;sl.addEventListener('input',e=>{n=+e.target.value;draw();});
+document.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click',()=>{mode=b.dataset.mode;document.querySelectorAll('[data-mode]').forEach(o=>o.setAttribute('aria-pressed',o===b));draw();}));
+document.querySelectorAll('[data-st]').forEach(b=>b.addEventListener('click',()=>{stretch=+b.dataset.st;document.querySelectorAll('[data-st]').forEach(o=>o.setAttribute('aria-pressed',o===b));draw();}));
+const pb=$('a-play');
+const stop=()=>{if(timer){clearInterval(timer);timer=null;pb.textContent='Play';}};
+pb.addEventListener('click',()=>{if(timer)stop();else{timer=setInterval(()=>{n=n%365+1;sl.value=n;draw();},45);pb.textContent='Pause';}});
+SS.views.analemma={draw,stop,place:build};
+})();
+
+/* ===================== places, link and routing ===================== */
+(()=>{
+const $=id=>document.getElementById(id);
+let cur=null;
+function show(){const want=(location.hash||'').replace('#','');const v=SS.views[want]?want:'compare';
+  if(cur&&cur!==v)SS.views[cur].stop();
+  Object.keys(SS.views).forEach(k=>{$('v-'+k).hidden=k!==v;});
+  document.querySelectorAll('[data-view]').forEach(a=>{if(a.dataset.view===v)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');});
+  const changed=cur&&cur!==v;cur=v;
+  if(changed)window.scrollTo(0,0);
+  SS.views[v].draw();}
+const redraw=()=>{SS.readC();if(cur)SS.views[cur].draw();};
+const status=(t,err)=>{const s=$('p-status');s.textContent=t;s.classList.toggle('err',!!err);};
+const describe=()=>`Comparing ${SS.A.label}${SS.A.note?' ('+SS.A.note+')':''} and ${SS.B.label}${SS.B.note?' ('+SS.B.note+')':''}.`;
+function apply(a,b){SS.A=a;SS.B=b;Object.values(SS.views).forEach(v=>v.place());if(cur)SS.views[cur].draw();status(describe());}
+function setLink(sa,sb){try{const u=new URL(location.href);u.searchParams.set('a',sa);u.searchParams.set('b',sb);history.replaceState(null,'',u.pathname+u.search+u.hash);}catch(e){}}
+async function go(sa,sb,updateLink){status('Looking up places…');
+  try{const [a,b]=await Promise.all([SS.resolve(sa),SS.resolve(sb)]);apply(a,b);if(updateLink)setLink(sa.trim(),sb.trim());}
+  catch(e){status(e.message,true);}}
+$('p-list').innerHTML=SS.WORLD.map(c=>`<option value="${SS.esc(c[0])}"></option>`).join('');
+$('places').addEventListener('submit',e=>{e.preventDefault();go($('p-a').value,$('p-b').value,true);});
+window.addEventListener('hashchange',show);
+window.addEventListener('resize',()=>{if(cur)SS.views[cur].draw();});
+try{matchMedia('(prefers-color-scheme: dark)').addEventListener('change',redraw);}catch(e){}
+new MutationObserver(redraw).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+/* Start with the built-in default pair so the page renders at once, then switch to the places in the link. */
+let qa='',qb='';try{const q=new URLSearchParams(location.search);qa=q.get('a')||'';qb=q.get('b')||'';}catch(e){}
+const w=k=>{const c=SS.WORLD.find(x=>x[0]===k);return SS.place(c[0],c[1],c[2],c[3],c[3]);};
+SS.A=w(SS.DEFAULT[0]);SS.B=w(SS.DEFAULT[1]);
+Object.values(SS.views).forEach(v=>v.place());
+SS.readC();show();status(describe());
+$('p-a').value=qa||SS.DEFAULT[0];$('p-b').value=qb||SS.DEFAULT[1];
+if(qa||qb)go(qa||SS.DEFAULT[0],qb||SS.DEFAULT[1],false);
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(redraw);
+})();
+</script>
+</html>
